@@ -1,35 +1,49 @@
-import os
-import requests
 import pandas as pd
-from dotenv import load_dotenv
+import random
+import datetime
 
-load_dotenv()
+# Simule la récupération de tokens "meme" depuis Solana
+def get_trending_tokens(min_liquidity=500, min_volume=10000):
+    # ⚠️ Ici c’est du FAKE DATA pour la démo
+    # Plus tard on pourra connecter à Dexscreener ou Jupiter API
+    
+    fake_data = []
+    for i in range(10):
+        fake_data.append({
+            "symbol": f"MEME{i}",
+            "liquidity": random.randint(100, 5000),
+            "volume_24h": random.randint(1000, 50000),
+            "price": round(random.uniform(0.0001, 1.0), 6)
+        })
 
-BIRDEYE_API = os.getenv("BIRDEYE_API_KEY")
+    df = pd.DataFrame(fake_data)
 
-def fetch_top_meme_coins(limit=10):
-    url = f"https://public-api.birdeye.so/public/tokenlist?sort=volume&chain=solana&limit={limit}"
-    headers = {"x-api-key": BIRDEYE_API}
+    # Filtrer selon les critères
+    df = df[(df["liquidity"] >= min_liquidity) & (df["volume_24h"] >= min_volume)]
+    return df
+
+# Analyse détaillée d’un token
+def analyze_token(symbol):
     try:
-        r = requests.get(url, headers=headers).json()
-        data = r.get("data", [])
-        df = pd.DataFrame(data)
-        return df[["symbol", "address", "liquidity", "price", "volume24h"]]
-    except Exception as e:
-        print("Erreur fetch_top_meme_coins:", e)
-        return pd.DataFrame()
+        # Fake historique pour la démo
+        history = []
+        now = datetime.datetime.now()
+        price = round(random.uniform(0.0001, 1.0), 6)
 
-def fetch_price_history(address):
-    url = f"https://public-api.birdeye.so/public/ohlcv?address={address}&type=1h&chain=solana"
-    headers = {"x-api-key": BIRDEYE_API}
-    try:
-        r = requests.get(url, headers=headers).json()
-        candles = r.get("data", [])
-        df = pd.DataFrame(candles)
-        if not df.empty:
-            df["time"] = pd.to_datetime(df["unixTime"], unit="s")
-            df.rename(columns={"o": "open", "c": "price"}, inplace=True)
-        return df
-    except Exception as e:
-        print("Erreur fetch_price_history:", e)
-        return pd.DataFrame()
+        for i in range(24):
+            history.append({
+                "time": now - datetime.timedelta(hours=i),
+                "price": price * (1 + random.uniform(-0.1, 0.1))
+            })
+
+        df_history = pd.DataFrame(history).sort_values("time")
+
+        return {
+            "price": price,
+            "volume_24h": random.randint(1000, 50000),
+            "liquidity": random.randint(500, 5000),
+            "holders": random.randint(100, 5000),
+            "history": df_history
+        }
+    except Exception:
+        return None
