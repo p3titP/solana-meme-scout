@@ -1,49 +1,42 @@
+import streamlit as st
 import pandas as pd
-import random
-import datetime
+import plotly.express as px
+from helpers import get_trending_tokens, analyze_token
 
-# Simule la récupération de tokens "meme" depuis Solana
-def get_trending_tokens(min_liquidity=500, min_volume=10000):
-    # ⚠️ Ici c’est du FAKE DATA pour la démo
-    # Plus tard on pourra connecter à Dexscreener ou Jupiter API
-    
-    fake_data = []
-    for i in range(10):
-        fake_data.append({
-            "symbol": f"MEME{i}",
-            "liquidity": random.randint(100, 5000),
-            "volume_24h": random.randint(1000, 50000),
-            "price": round(random.uniform(0.0001, 1.0), 6)
-        })
+st.set_page_config(page_title="Solana Meme Scout", layout="wide")
 
-    df = pd.DataFrame(fake_data)
+st.title("🚀 Solana Meme Scout")
+st.markdown("Style Phantom • Scanner de meme coins Solana avec graphiques.")
 
-    # Filtrer selon les critères
-    df = df[(df["liquidity"] >= min_liquidity) & (df["volume_24h"] >= min_volume)]
-    return df
+# Sidebar
+st.sidebar.header("⚙️ Paramètres")
+min_liquidity = st.sidebar.slider("Liquidité minimum (SOL)", 50, 5000, 500)
+min_volume = st.sidebar.slider("Volume minimum (24h)", 1000, 100000, 10000)
 
-# Analyse détaillée d’un token
-def analyze_token(symbol):
-    try:
-        # Fake historique pour la démo
-        history = []
-        now = datetime.datetime.now()
-        price = round(random.uniform(0.0001, 1.0), 6)
+# Récupération des données (fake data pour démo)
+coins = get_trending_tokens(min_liquidity=min_liquidity, min_volume=min_volume)
 
-        for i in range(24):
-            history.append({
-                "time": now - datetime.timedelta(hours=i),
-                "price": price * (1 + random.uniform(-0.1, 0.1))
-            })
+if coins.empty:
+    st.error("Aucun coin trouvé avec ces critères.")
+else:
+    st.subheader("🔥 Meme Coins détectés")
+    st.dataframe(coins)
 
-        df_history = pd.DataFrame(history).sort_values("time")
+    choix = st.selectbox("Choisir un coin pour voir le graphique", coins["symbol"])
+    token_data = analyze_token(choix)
 
-        return {
-            "price": price,
-            "volume_24h": random.randint(1000, 50000),
-            "liquidity": random.randint(500, 5000),
-            "holders": random.randint(100, 5000),
-            "history": df_history
-        }
-    except Exception:
-        return None
+    if token_data is not None:
+        st.subheader(f"Analyse de {choix}")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("💰 Prix actuel", f"{token_data['price']}$")
+            st.metric("📊 Volume 24h", f"{token_data['volume_24h']}$")
+        with col2:
+            st.metric("🏦 Liquidité", f"{token_data['liquidity']}$")
+            st.metric("👥 Holders", token_data["holders"])
+
+        # Historique de prix
+        history = token_data["history"]
+        fig = px.line(history, x="time", y="price", title=f"Évolution du prix de {choix}")
+        st.plotly_chart(fig, use_container_width=True)
