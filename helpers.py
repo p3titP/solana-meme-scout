@@ -1,42 +1,71 @@
-import streamlit as st
 import pandas as pd
-import plotly.express as px
-from helpers import get_trending_tokens, analyze_token
+import requests
+import datetime
 
-st.set_page_config(page_title="Solana Meme Scout", layout="wide")
+# 🔎 Récupérer les tokens trending sur Solana via Dexscreener
+def get_trending_tokens(min_liquidity=500, min_volume=10000):
+    url = "https://api.dexscreener.com/latest/dex/tokens/solana"
+    try:
+        res = requests.get(url, timeout=10)
+        data = res.json()
 
-st.title("🚀 Solana Meme Scout")
-st.markdown("Style Phantom • Scanner de meme coins Solana avec graphiques.")
+        tokens = []
+        for t in data.get("pairs", []):
+            # Récupération infos de base
+            token = {
+                "symbol": t.get("baseToken", {}).get("symbol", "N/A"),
+                "address": t.get("baseToken", {}).get("address", ""),
+                "liquidity": t.get("liquidity", {}).get("usd", 0),
+                "volume_24h": t.get("volume", {}).get("h24", 0),
+                "price": float(t.get("priceUsd", 0))
+            }
+            tokens.append(token)
 
-# Sidebar
-st.sidebar.header("⚙️ Paramètres")
-min_liquidity = st.sidebar.slider("Liquidité minimum (SOL)", 50, 5000, 500)
-min_volume = st.sidebar.slider("Volume minimum (24h)", 1000, 100000, 10000)
+        df = pd.DataFrame(tokens)
 
-# Récupération des données (fake data pour démo)
-coins = get_trending_tokens(min_liquidity=min_liquidity, min_volume=min_volume)
+        # Filtrer selon critères
+        df = df[(df["liquidity"] >= min_liquidity) & (df["volume_24h"] >= min_volume)]
 
-if coins.empty:
-    st.error("Aucun coin trouvé avec ces critères.")
-else:
-    st.subheader("🔥 Meme Coins détectés")
-    st.dataframe(coins)
+        return df
 
-    choix = st.selectbox("Choisir un coin pour voir le graphique", coins["symbol"])
-    token_data = analyze_token(choix)
+    except Exception as e:
+        print("Erreur Dexscreener:", e)
+        return pd.DataFrame()
 
-    if token_data is not None:
-        st.subheader(f"Analyse de {choix}")
+# 📈 Analyse d’un token (historique de prix depuis Dexscreener)
+def analyze_token(address):
+    url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
+    try:
+        res = requests.get(url, timeout=10)
+        data = res.json()
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("💰 Prix actuel", f"{token_data['price']}$")
-            st.metric("📊 Volume 24h", f"{token_data['volume_24h']}$")
-        with col2:
-            st.metric("🏦 Liquidité", f"{token_data['liquidity']}$")
-            st.metric("👥 Holders", token_data["holders"])
+        pairs = data.get("pairs", [])
+        if not pairs:
+            return None
 
-        # Historique de prix
-        history = token_data["history"]
-        fig = px.line(history, x="time", y="price", title=f"Évolution du prix de {choix}")
-        st.plotly_chart(fig, use_container_width=True)
+        token = pairs[0]
+
+        # Historique simplifié (Dexscreener ne donne pas les bougies → on simule à partir du prix actuel)
+        price = float(token.get("priceUsd", 0))
+        history = []
+        now = datetime.datetime.now()
+
+        for i in range(24):
+            history.append({
+                "time": now - datetime.timedelta(hours=i),
+                "price": price * (1 + (0.02 * ((i % 5) - 2)))  # variations factices ±2%
+            })
+
+        df_history = pd.DataFrame(history).sort_values("time")
+
+        return {
+            "price": price,
+            "volume_24h": token.get("volume", {}).get("h24", 0),
+            "liquidity": token.get("liquidity", {}).get("usd", 0),
+            "holders": token.get("txns", {}).get("h24", 0),  # approximation
+            "history": df_history
+        }
+
+    except Exception as e:
+        print("Erreur analyse token:", e)
+        return None
