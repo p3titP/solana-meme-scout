@@ -42,3 +42,7 @@ else:
         history = token_data["history"]
         fig = px.line(history, x="time", y="price", title=f"Évolution du prix de {choix}")
         st.plotly_chart(fig, use_container_width=True)
+
+        # 🔗 Bouton "Acheter sur Jupiter"
+        jupiter_url = f"https://jup.ag/swap/SOL-{token['address']}"
+        st.markdown(f"[👉 Acheter {choix} sur Jupiter]({jupiter_url})", unsafe_allow_html=True)
