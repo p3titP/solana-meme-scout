@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from utils import get_trending_tokens, analyze_token
+from helpers import get_trending_tokens, analyze_token
 
 st.set_page_config(page_title="Solana Meme Scout", layout="wide")
 
