@@ -1,57 +1,31 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from utils import get_trending_tokens, analyze_token
+from utils import fetch_top_meme_coins, fetch_price_history
 
-st.set_page_config(
-    page_title="Solana Meme Scout",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="Solana Meme Scout", layout="wide")
 
 st.title("🚀 Solana Meme Scout")
-st.markdown("Reste informé des nouveaux **meme coins Solana** avec gros potentiel 📈")
+st.markdown("Style Phantom • Scanner de meme coins Solana avec graphiques.")
 
 # Sidebar
 st.sidebar.header("⚙️ Paramètres")
-min_liquidity = st.sidebar.slider("Liquidité minimum (SOL)", 50, 5000, 500)
-min_volume = st.sidebar.slider("Volume minimum (24h)", 1000, 100000, 10000)
+limit = st.sidebar.slider("Nombre de coins affichés", 5, 50, 10)
 
-# Charger les tokens
-st.sidebar.write("📡 Récupération des données en cours...")
-tokens = get_trending_tokens(min_liquidity, min_volume)
+# Récupération des données
+coins = fetch_top_meme_coins(limit=limit)
 
-if tokens.empty:
-    st.warning("Aucun token ne correspond aux critères.")
+if coins.empty:
+    st.error("Aucun coin trouvé. Vérifie tes clés API dans `.env`.")
 else:
-    st.success(f"{len(tokens)} tokens trouvés ✅")
+    st.subheader("🔥 Top Meme Coins détectés")
+    st.dataframe(coins)
 
-    # Tableau principal
-    st.dataframe(tokens, use_container_width=True)
+    choix = st.selectbox("Choisir un coin pour voir le graphique", coins["symbol"])
+    token = coins[coins["symbol"] == choix].iloc[0]
 
-    # Sélection d’un token
-    choix = st.selectbox("🔎 Choisir un token à analyser", tokens["symbol"])
-    token_data = analyze_token(choix)
-
-    if token_data is not None:
-        st.subheader(f"Analyse détaillée : {choix}")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.metric("💰 Prix actuel", f"{token_data['price']} $")
-            st.metric("📊 Volume 24h", f"{token_data['volume_24h']} $")
-
-        with col2:
-            st.metric("🏦 Liquidité", f"{token_data['liquidity']} $")
-            st.metric("👥 Holders", token_data["holders"])
-
-        # Graphique prix
-        fig = px.line(
-            token_data["history"],
-            x="time",
-            y="price",
-            title=f"Évolution du prix ({choix})",
-            template="plotly_dark",
-        )
+    # Historique de prix
+    history = fetch_price_history(token["address"])
+    if not history.empty:
+        fig = px.line(history, x="time", y="price", title=f"Évolution de {choix}")
         st.plotly_chart(fig, use_container_width=True)
