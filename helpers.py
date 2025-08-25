@@ -1,43 +1,40 @@
 import pandas as pd
 import requests
+import datetime
+import random
+
+BIRDEYE_URL = "https://public-api.birdeye.so/public/market/trending"
+HEADERS = {"x-chain": "solana"}
 
 def get_trending_tokens(min_liquidity=50, min_volume=1000):
-    # Endpoint spécifique à Solana
-    url = "https://api.dexscreener.com/latest/dex/pairs/solana"
     try:
-        res = requests.get(url, timeout=10)
-print("Status code:", res.status_code)
-print("Texte brut:", res.text[:500])  # affiche les 500 premiers caractères
+        res = requests.get(BIRDEYE_URL, headers=HEADERS, timeout=10)
+        data = res.json()
 
         tokens = []
-        for t in data.get("pairs", []):
+        for t in data.get("data", []):
             tokens.append({
-                "symbol": t.get("baseToken", {}).get("symbol", "N/A"),
-                "address": t.get("baseToken", {}).get("address", ""),
-                "liquidity": t.get("liquidity", {}).get("usd", 0),
-                "volume_24h": t.get("volume", {}).get("h24", 0),
-                "price": float(t.get("priceUsd", 0) or 0)
+                "symbol": t.get("symbol", "N/A"),
+                "address": t.get("address", ""),
+                "liquidity": t.get("liquidity", 0),
+                "volume_24h": t.get("v24hUSD", 0),
+                "price": t.get("price", 0),
             })
 
         df = pd.DataFrame(tokens)
 
-        if df.empty:
-            print("⚠️ Aucun token récupéré depuis l’API.")
-            return pd.DataFrame()
-
-        # Filtrage
+        # Filtrer selon les critères
         df = df[(df["liquidity"] >= min_liquidity) & (df["volume_24h"] >= min_volume)]
 
         return df
 
     except Exception as e:
-        print("Erreur Dexscreener:", e)
+        print("Erreur Birdeye:", e)
         return pd.DataFrame()
 
 
 def analyze_token(address):
-    # Historique fictif (à améliorer après)
-    import datetime, random
+    """Fake historique (Birdeye n’a pas d’historique gratuit)"""
     history = []
     now = datetime.datetime.now()
     base_price = random.uniform(0.0001, 1.0)
