@@ -2,16 +2,17 @@ import pandas as pd
 import requests
 import datetime
 
-# 🔎 Récupérer les tokens trending sur Solana via Dexscreener
 def get_trending_tokens(min_liquidity=500, min_volume=10000):
-    url = "https://api.dexscreener.com/latest/dex/tokens/solana"
+    url = "https://api.dexscreener.com/latest/dex/trending"
     try:
         res = requests.get(url, timeout=10)
         data = res.json()
 
         tokens = []
         for t in data.get("pairs", []):
-            # Récupération infos de base
+            if t.get("chainId") != "solana":  # garder uniquement Solana
+                continue
+
             token = {
                 "symbol": t.get("baseToken", {}).get("symbol", "N/A"),
                 "address": t.get("baseToken", {}).get("address", ""),
@@ -22,8 +23,6 @@ def get_trending_tokens(min_liquidity=500, min_volume=10000):
             tokens.append(token)
 
         df = pd.DataFrame(tokens)
-
-        # Filtrer selon critères
         df = df[(df["liquidity"] >= min_liquidity) & (df["volume_24h"] >= min_volume)]
 
         return df
