@@ -6,7 +6,8 @@ def get_trending_tokens(min_liquidity=50, min_volume=1000):
     url = "https://api.dexscreener.com/latest/dex/pairs/solana"
     try:
         res = requests.get(url, timeout=10)
-        data = res.json()
+print("Status code:", res.status_code)
+print("Texte brut:", res.text[:500])  # affiche les 500 premiers caractères
 
         tokens = []
         for t in data.get("pairs", []):
