@@ -6,25 +6,54 @@ import random
 BIRDEYE_URL = "https://public-api.birdeye.so/public/market/trending"
 HEADERS = {"x-chain": "solana"}
 
-def get_trending_tokens(min_liquidity=50, min_volume=1000):
+def get_trending_tokens():
     try:
         res = requests.get(BIRDEYE_URL, headers=HEADERS, timeout=10)
         data = res.json()
 
         tokens = []
         for t in data.get("data", []):
+            volume = t.get("v24hUSD", t.get("v24h", 0)) or 0
+            liquidity = t.get("liquidity", 0) or 0
+            price = t.get("price", 0) or 0
+
+            # 🎯 Calcul d’une note de potentiel
+            score = 0
+            # Volume = moteur principal
+            if volume > 1_000_000:
+                score += 4
+            elif volume > 100_000:
+                score += 3
+            elif volume > 10_000:
+                score += 2
+            else:
+                score += 1
+
+            # Liquidité = sécurité minimale
+            if 50_000 <= liquidity <= 500_000:
+                score += 3
+            elif 10_000 <= liquidity < 50_000:
+                score += 2
+            elif liquidity < 10_000:
+                score += 1
+
+            # Prix bas (plus spéculatif)
+            if price < 0.01:
+                score += 2
+            elif price < 1:
+                score += 1
+
             tokens.append({
                 "symbol": t.get("symbol", "N/A"),
                 "address": t.get("address", ""),
-                "liquidity": t.get("liquidity", 0),
-                "volume_24h": t.get("v24hUSD", 0),
-                "price": t.get("price", 0),
+                "liquidity": liquidity,
+                "volume_24h": volume,
+                "price": price,
+                "score": score,  # ✅ Note finale
             })
 
         df = pd.DataFrame(tokens)
-
-        # Filtrer selon les critères
-        df = df[(df["liquidity"] >= min_liquidity) & (df["volume_24h"] >= min_volume)]
+        df = df.sort_values("score", ascending=False)  # classé par potentiel
 
         return df
 
