@@ -6,7 +6,7 @@ from helpers import get_trending_tokens, analyze_token
 st.set_page_config(page_title="Solana Meme Scouteeee", layout="wide")
 
 st.title("🚀 Solana Meme Scout")
-st.markdown("Style Phantom • Scanner de vrais meme coins Solana via Dexscreener.")
+st.markdown("Style Phantom • Scanner de vrais meme coins Solana viashhsklfh Dexscreener.")
 
 # Sidebar
 st.sidebar.header("⚙️ Paramètres")
