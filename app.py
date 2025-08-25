@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 from helpers import get_trending_tokens, analyze_token
 
-st.set_page_config(page_title="Solana Meme Scout", layout="wide")
+st.set_page_config(page_title="Solana Meme Scouteeee", layout="wide")
 
 st.title("🚀 Solana Meme Scout")
 st.markdown("Style Phantom • Scanner de vrais meme coins Solana via Dexscreener.")
