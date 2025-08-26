@@ -1,59 +1,47 @@
+import os
 import requests
 import pandas as pd
-import random
-import datetime
 
-# --- Récupération brute des tokens depuis Dexscreener ---
-def get_trending_tokens():
-    try:
-        url = "https://api.dexscreener.com/latest/dex/tokens/solana"
-        response = requests.get(url)
-        data = response.json()
+API_KEY = os.getenv("BIRDEYE_API_KEY")
+BASE_URL = "https://public-api.birdeye.so/defi"
 
-        if "pairs" not in data:
-            return pd.DataFrame()
+HEADERS = {"X-API-KEY": API_KEY, "accept": "application/json"}
 
-        tokens = []
-        for pair in data["pairs"][:20]:  # on prend juste les 20 premiers
-            tokens.append({
-                "symbol": pair.get("baseToken", {}).get("symbol", "N/A"),
-                "address": pair.get("baseToken", {}).get("address", "N/A"),
-                "liquidity": pair.get("liquidity", {}).get("usd", 0),
-                "volume_24h": pair.get("volume", {}).get("h24", 0),
-                "price": pair.get("priceUsd", 0),
-                # Score aléatoire pour démo
-                "score": random.randint(1, 10)
-            })
 
-        return pd.DataFrame(tokens)
+# 🔍 Récupère les tokens trending en direct
+def get_trending_tokens(limit=20):
+    url = f"{BASE_URL}/token_trending"
+    params = {"sort_by": "volume24hUSD", "limit": limit}
+    response = requests.get(url, headers=HEADERS, params=params)
 
-    except Exception as e:
-        print("Erreur API :", e)
+    if response.status_code != 200:
+        print("Erreur API BirdEye:", response.text)
         return pd.DataFrame()
 
+    data = response.json().get("data", {}).get("tokens", [])
+    if not data:
+        return pd.DataFrame()
 
-# --- Analyse d’un token ---
-def analyze_token(symbol):
-    try:
-        now = datetime.datetime.now()
-        history = []
-        price = round(random.uniform(0.0001, 1.0), 6)
+    df = pd.DataFrame(data)
 
-        for i in range(24):
-            history.append({
-                "time": now - datetime.timedelta(hours=i),
-                "price": price * (1 + random.uniform(-0.15, 0.15))
-            })
+    # 💡 Calculer un score potentiel sur 10
+    df["score"] = (
+        (df["v24hUSD"].astype(float) / df["v24hUSD"].astype(float).max()) * 4  # volume
+        + (df["liquidity"].astype(float) / df["liquidity"].astype(float).max()) * 3  # liquidité
+        + (df["holders"].astype(float) / df["holders"].astype(float).max()) * 3  # nombre de holders
+    )
 
-        df_history = pd.DataFrame(history).sort_values("time")
+    df["score"] = df["score"].round(1).clip(0, 10)  # note finale sur 10
 
-        return {
-            "price": price,
-            "volume_24h": random.randint(1000, 50000),
-            "liquidity": random.randint(500, 5000),
-            "holders": random.randint(50, 5000),
-            "score": random.randint(1, 10),
-            "history": df_history
-        }
-    except:
-        return None
+    return df[["symbol", "address", "liquidity", "v24hUSD", "holders", "score"]]
+
+
+# 📈 Historique du prix pour un token
+def get_price_history(address, interval="1h", limit=24):
+    url = f"{BASE_URL}/price_history"
+    params = {"address": address, "interval": interval, "limit": limit}
+    response = requests.get(url, headers=HEADERS, params=params)
+
+    if response.status_code != 200:
+        print("Erreur API BirdEye:", response.text)
+        return pd.DataFrame()
