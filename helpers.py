@@ -1,41 +1,54 @@
-import os
 import requests
 import pandas as pd
-from dotenv import load_dotenv
 
-# Charger .env
-load_dotenv()
+BASE_URL = "https://api.coingecko.com/api/v3"
 
-API_KEY = os.getenv("BIRDEYE_API_KEY")
-BASE_URL = "https://public-api.birdeye.so"  # <-- on ne met pas /defi directement
-HEADERS = {"X-API-KEY": API_KEY, "accept": "application/json"}
-
-# 🔍 Récupère les tokens trending en direct
+# 🔍 Récupère les tokens trending en direct (CoinGecko)
 def get_trending_tokens(limit=20):
-    url = f"{BASE_URL}/public/market/trending"
-    params = {"sort_by": "volume24hUSD", "limit": limit}
-    response = requests.get(url, headers=HEADERS, params=params)
+    url = f"{BASE_URL}/search/trending"
+    response = requests.get(url)
 
     if response.status_code != 200:
-        print("Erreur API BirdEye:", response.status_code, response.text)
+        print("Erreur API CoinGecko:", response.text)
         return pd.DataFrame()
 
-    raw = response.json()
-    print("Réponse brute BirdEye:", raw)  # <-- DEBUG
+    data = response.json().get("coins", [])[:limit]
 
-    data = raw.get("data", {}).get("tokens") or raw.get("data", [])
     if not data:
         return pd.DataFrame()
 
-    df = pd.DataFrame(data)
+    df = pd.DataFrame([{
+        "symbol": c["item"]["symbol"],
+        "address": c["item"]["id"],   # CoinGecko ID
+        "score": c["item"]["score"],  # score natif
+        "market_cap_rank": c["item"].get("market_cap_rank"),
+        "name": c["item"]["name"]
+    } for c in data])
 
-    # 💡 Calculer un score potentiel
-    df["score"] = (
-        (df["v24hUSD"].astype(float) / df["v24hUSD"].astype(float).max()) * 4 +
-        (df["liquidity"].astype(float) / df["liquidity"].astype(float).max()) * 3 +
-        (df["holders"].astype(float) / df["holders"].astype(float).max()) * 3
-    )
+    return df
 
-    df["score"] = df["score"].round(1).clip(0, 10)
 
-    return df[["symbol", "address", "liquidity", "v24hUSD", "holders", "score"]]
+# 📊 Analyse d’un token (via CoinGecko)
+def analyze_token(token_id):
+    url = f"{BASE_URL}/coins/{token_id}"
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        print("Erreur API CoinGecko:", response.text)
+        return None
+
+    data = response.json()
+    market_data = data.get("market_data", {})
+
+    # Exemple d’analyse simplifiée
+    return {
+        "price": market_data.get("current_price", {}).get("usd"),
+        "volume_24h": market_data.get("total_volume", {}).get("usd"),
+        "liquidity": market_data.get("market_cap"),  # proxy car CoinGecko ne donne pas "liquidity"
+        "holders": data.get("community_data", {}).get("twitter_followers"),  # proxy aussi
+        "score": data.get("coingecko_score"),
+        "history": pd.DataFrame([{
+            "time": h[0],
+            "price": h[1]
+        } for h in market_data.get("sparkline_7d", {}).get("price", []) for h in []])  # placeholder
+    }
