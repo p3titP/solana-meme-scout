@@ -1,10 +1,5 @@
-import requests
-import pandas as pd
-
-
-# 🔍 Récupère les tokens "meme" trending (DexScreener)
 def get_trending_tokens(limit=20):
-    url = "https://api.dexscreener.com/latest/dex/tokens/trending"
+    url = "https://api.dexscreener.com/latest/dex/tokens/solana"
     response = requests.get(url)
 
     if response.status_code != 200:
@@ -15,56 +10,24 @@ def get_trending_tokens(limit=20):
     if not data:
         return pd.DataFrame()
 
-    # transformer en DataFrame
-    df = pd.DataFrame(data)
+    tokens = []
+    for d in data[:limit]:
+        tokens.append({
+            "symbol": d["baseToken"]["symbol"],
+            "address": d["baseToken"]["address"],
+            "price": float(d["priceUsd"]) if d.get("priceUsd") else None,
+            "volume_24h": float(d["volume"]["h24"]) if "volume" in d else None,
+            "liquidity": float(d["liquidity"]["usd"]) if "liquidity" in d else None,
+            "fdv": float(d["fdv"]) if d.get("fdv") else None,
+            "logo": d["info"].get("imageUrl") if "info" in d else None,
+        })
 
-    # certaines colonnes peuvent ne pas exister → on sécurise
-    df["symbol"] = df.get("baseToken", {}).apply(lambda x: x.get("symbol") if isinstance(x, dict) else None)
-    df["address"] = df.get("baseToken", {}).apply(lambda x: x.get("address") if isinstance(x, dict) else None)
-    df["liquidity"] = df["liquidity"].apply(lambda x: x.get("usd") if isinstance(x, dict) else None)
-    df["v24hUSD"] = df["volume"].apply(lambda x: x.get("h24") if isinstance(x, dict) else None)
+    df = pd.DataFrame(tokens)
 
-    # rajout logo si dispo
-    if "info" in df.columns:
-        df["logo"] = df["info"].apply(lambda x: x.get("imageUrl") if isinstance(x, dict) else None)
-    else:
-        df["logo"] = None
-
-    # Score basique : volume + liquidité
+    # score simple
     df["score"] = (
-        (df["v24hUSD"].astype(float) / df["v24hUSD"].astype(float).max()) * 5
-        + (df["liquidity"].astype(float) / df["liquidity"].astype(float).max()) * 5
-    )
-    df["score"] = df["score"].round(1).clip(0, 10)
+        (df["volume_24h"].fillna(0) / df["volume_24h"].max()) * 5 +
+        (df["liquidity"].fillna(0) / df["liquidity"].max()) * 5
+    ).round(1).clip(0, 10)
 
-    return df[["symbol", "address", "liquidity", "v24hUSD", "score", "logo"]].head(limit)
-
-
-# 📊 Analyse détaillée d’un token
-def analyze_token(address):
-    url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
-    response = requests.get(url)
-
-    if response.status_code != 200:
-        print("Erreur analyse token:", response.text)
-        return None
-
-    data = response.json().get("pairs", [])
-    if not data:
-        return None
-
-    d = data[0]  # première paire
-    details = {
-        "price": float(d["priceUsd"]) if d.get("priceUsd") else None,
-        "volume_24h": float(d["volume"]["h24"]) if "volume" in d else None,
-        "liquidity": float(d["liquidity"]["usd"]) if "liquidity" in d else None,
-        "fdv": float(d["fdv"]) if d.get("fdv") else None,
-        "holders": d["txns"]["h24"] if "txns" in d else None,  # approximation
-        "score": None,
-    }
-
-    # historique fictif pour l’instant (DexScreener ne donne pas direct)
-    history = pd.DataFrame([{"time": 0, "price": float(d["priceUsd"])}]) if d.get("priceUsd") else pd.DataFrame()
-    details["history"] = history
-
-    return details
+    return df
