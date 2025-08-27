@@ -1,58 +1,59 @@
 import requests
 import pandas as pd
 
-BASE_URL = "https://api.coingecko.com/api/v3"
+DEX_URL = "https://api.dexscreener.com/latest/dex/search"
 
-# 🔍 Tokens tendances
+# 🔥 Récupère les tokens Solana en tendance
 def get_trending_tokens(limit=20):
-    url = f"{BASE_URL}/search/trending"
-    response = requests.get(url)
-
-    if response.status_code != 200:
-        print("Erreur API CoinGecko:", response.text)
+    url = f"{DEX_URL}?q=solana"
+    r = requests.get(url)
+    if r.status_code != 200:
+        print("Erreur API Dexscreener:", r.text)
         return pd.DataFrame()
 
-    data = response.json().get("coins", [])[:limit]
+    pairs = r.json().get("pairs", [])[:limit]
 
-    if not data:
+    if not pairs:
         return pd.DataFrame()
 
     df = pd.DataFrame([{
-        "symbol": c["item"]["symbol"],
-        "id": c["item"]["id"],   # CoinGecko ID
-        "name": c["item"]["name"],
-        "score": c["item"]["score"],
-        "market_cap_rank": c["item"].get("market_cap_rank")
-    } for c in data])
+        "symbol": p.get("baseToken", {}).get("symbol"),
+        "id": p.get("baseToken", {}).get("address"),  # address du token
+        "name": p.get("baseToken", {}).get("name"),
+        "price": float(p.get("priceUsd")) if p.get("priceUsd") else None,
+        "liquidity": p.get("liquidity", {}).get("usd"),
+        "volume_24h": p.get("volume", {}).get("h24"),
+        "fdv": p.get("fdv"),
+        "score": round(
+            (float(p.get("volume", {}).get("h24") or 0) / max(1, float(p.get("liquidity", {}).get("usd") or 1))) * 10,
+            1
+        )  # petit score maison : ratio volume/liquidité
+    } for p in pairs])
 
     return df
 
 
-# 📊 Analyse d’un token
-def analyze_token(token_id):
-    # Données principales
-    url = f"{BASE_URL}/coins/{token_id}?localization=false&market_data=true&community_data=true&sparkline=false"
+# 📊 Analyse détaillée d’un token (via Dexscreener)
+def analyze_token(token_address):
+    url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
     r = requests.get(url)
+
     if r.status_code != 200:
-        print("Erreur API CoinGecko:", r.text)
+        print("Erreur API Dexscreener (analyse):", r.text)
         return None
 
-    data = r.json()
-    market_data = data.get("market_data", {})
+    pairs = r.json().get("pairs", [])
+    if not pairs:
+        return None
 
-    # Historique (7 jours en USD)
-    hist_url = f"{BASE_URL}/coins/{token_id}/market_chart?vs_currency=usd&days=7&interval=hourly"
-    rh = requests.get(hist_url)
-    history = []
-    if rh.status_code == 200:
-        for point in rh.json().get("prices", []):
-            history.append({"time": pd.to_datetime(point[0], unit="ms"), "price": point[1]})
+    p = pairs[0]  # on prend la première pool trouvée
+    history = []  # Dexscreener n'a pas d'historique gratuit simple
 
     return {
-        "price": market_data.get("current_price", {}).get("usd"),
-        "volume_24h": market_data.get("total_volume", {}).get("usd"),
-        "liquidity": market_data.get("market_cap"),  # proxy
-        "holders": data.get("community_data", {}).get("twitter_followers"),  # proxy
-        "score": data.get("coingecko_score"),
-        "history": pd.DataFrame(history)
+        "price": float(p.get("priceUsd")) if p.get("priceUsd") else None,
+        "volume_24h": p.get("volume", {}).get("h24"),
+        "liquidity": p.get("liquidity", {}).get("usd"),
+        "holders": None,  # pas dispo via Dexscreener
+        "score": None,    # tu peux recalculer si tu veux
+        "history": pd.DataFrame(history)  # vide pour l’instant
     }
