@@ -1,59 +1,41 @@
 import requests
 import pandas as pd
 
-DEX_URL = "https://api.dexscreener.com/latest/dex/search"
+DEXSCREENER_URL = "https://api.dexscreener.com/latest/dex/tokens"
 
-# 🔥 Récupère les tokens Solana en tendance
 def get_trending_tokens(limit=20):
-    url = f"{DEX_URL}?q=solana"
-    r = requests.get(url)
-    if r.status_code != 200:
-        print("Erreur API Dexscreener:", r.text)
+    url = "https://api.dexscreener.com/latest/dex/tokens/solana"
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        print("Erreur API DexScreener:", response.text)
         return pd.DataFrame()
 
-    pairs = r.json().get("pairs", [])[:limit]
-
-    if not pairs:
+    data = response.json().get("pairs", [])
+    if not data:
         return pd.DataFrame()
 
-    df = pd.DataFrame([{
-        "symbol": p.get("baseToken", {}).get("symbol"),
-        "id": p.get("baseToken", {}).get("address"),  # address du token
-        "name": p.get("baseToken", {}).get("name"),
-        "price": float(p.get("priceUsd")) if p.get("priceUsd") else None,
-        "liquidity": p.get("liquidity", {}).get("usd"),
-        "volume_24h": p.get("volume", {}).get("h24"),
-        "fdv": p.get("fdv"),
-        "score": round(
-            (float(p.get("volume", {}).get("h24") or 0) / max(1, float(p.get("liquidity", {}).get("usd") or 1))) * 10,
-            1
-        )  # petit score maison : ratio volume/liquidité
-    } for p in pairs])
+    tokens = []
+    for d in data[:limit]:
+        token_info = {
+            "symbol": d["baseToken"]["symbol"],
+            "name": d["baseToken"]["name"],
+            "address": d["baseToken"]["address"],
+            "price": float(d["priceUsd"]) if d.get("priceUsd") else None,
+            "volume_24h": float(d["volume"]["h24"]) if d.get("volume") else None,
+            "liquidity": float(d["liquidity"]["usd"]) if d.get("liquidity") else None,
+            "fdv": float(d["fdv"]) if d.get("fdv") else None,
+            "logo": d["info"].get("imageUrl") if "info" in d else None,  # 👈 Logo ajouté
+        }
+        tokens.append(token_info)
+
+    df = pd.DataFrame(tokens)
+
+    # Score sur 10
+    df["score"] = (
+        (df["volume_24h"].fillna(0) / df["volume_24h"].max()) * 4
+        + (df["liquidity"].fillna(0) / df["liquidity"].max()) * 3
+        + (df["fdv"].fillna(0) / df["fdv"].max()) * 3
+    ).round(1).clip(0, 10)
 
     return df
-
-
-# 📊 Analyse détaillée d’un token (via Dexscreener)
-def analyze_token(token_address):
-    url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-    r = requests.get(url)
-
-    if r.status_code != 200:
-        print("Erreur API Dexscreener (analyse):", r.text)
-        return None
-
-    pairs = r.json().get("pairs", [])
-    if not pairs:
-        return None
-
-    p = pairs[0]  # on prend la première pool trouvée
-    history = []  # Dexscreener n'a pas d'historique gratuit simple
-
-    return {
-        "price": float(p.get("priceUsd")) if p.get("priceUsd") else None,
-        "volume_24h": p.get("volume", {}).get("h24"),
-        "liquidity": p.get("liquidity", {}).get("usd"),
-        "holders": None,  # pas dispo via Dexscreener
-        "score": None,    # tu peux recalculer si tu veux
-        "history": pd.DataFrame(history)  # vide pour l’instant
-    }
