@@ -11,7 +11,7 @@ def get_trending_tokens(limit=20):
         print("Erreur API DexScreener:", response.text)
         return pd.DataFrame()
 
-    # On garde uniquement les paires sur Solana
+    # Garder uniquement les paires sur Solana
     pairs = [p for p in response.json().get("pairs", []) if p.get("chainId") == "solana"]
     if not pairs:
         return pd.DataFrame()
@@ -58,10 +58,10 @@ def analyze_token(address):
         "volume_24h": float(d["volume"]["h24"]) if "volume" in d else None,
         "liquidity": float(d["liquidity"]["usd"]) if "liquidity" in d else None,
         "fdv": float(d["fdv"]) if d.get("fdv") else None,
-        "holders": d["txns"]["h24"] if "txns" in d else None,  # approximation
+        "holders": d["txns"]["h24"] if "txns" in d else None,
     }
 
-    # ⚠️ DexScreener n’a pas d’historique, on met juste le prix actuel
+    # ⚠️ Pas de vrai historique dispo → juste un point avec le prix actuel
     details["history"] = pd.DataFrame(
         [{"time": 0, "price": details["price"]}]
     ) if details["price"] else pd.DataFrame()
