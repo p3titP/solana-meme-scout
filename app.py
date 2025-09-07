@@ -1,61 +1,70 @@
-import streamlit as st
+import requests
 import pandas as pd
-import plotly.express as px
-from helpers import get_trending_tokens, analyze_token
-
-st.set_page_config(page_title="Solana Meme Scout", layout="wide")
-
-st.title("🚀 Solana Meme Scout")
-st.markdown("Style Phantom • Scanner les meme coins Solana avec graphiques + score potentiel.")
 
 
-# 🔍 Récupération des tokens
-tokens = get_trending_tokens(limit=15)
+# 🔍 Récupère les meme coins trending sur Solana
+def get_trending_tokens(limit=20):
+    url = "https://api.dexscreener.com/latest/dex/search?q=meme"
+    response = requests.get(url)
 
-if tokens.empty:
-    st.error("Aucun coin trouvé (erreur API ?)")
-else:
-    st.subheader("🔥 Meme Coins détectés avec Score")
+    if response.status_code != 200:
+        print("Erreur API DexScreener:", response.text)
+        return pd.DataFrame()
 
-    # affichage type "cards" avec logos
-    for _, row in tokens.iterrows():
-        cols = st.columns([1, 3, 2])
-        with cols[0]:
-            if row.get("logo"):
-                st.image(row["logo"], width=60)
-            else:
-                st.write("🪙")
-        with cols[1]:
-            st.markdown(f"### {row['symbol']}")
-            st.markdown(
-                f"- 💰 Prix : **{row['price']:.6f} USD**\n"
-                f"- 📈 Volume 24h : **{row['volume_24h']}**\n"
-                f"- 💦 Liquidité : **{row['liquidity']}**"
-            )
-        with cols[2]:
-            st.metric("⭐ Score", f"{row['score']}/10")
+    # On garde uniquement les paires sur Solana
+    pairs = [p for p in response.json().get("pairs", []) if p.get("chainId") == "solana"]
+    if not pairs:
+        return pd.DataFrame()
 
-        st.divider()
+    tokens = []
+    for d in pairs[:limit]:
+        tokens.append({
+            "symbol": d["baseToken"]["symbol"],
+            "address": d["baseToken"]["address"],
+            "price": float(d["priceUsd"]) if d.get("priceUsd") else None,
+            "volume_24h": float(d["volume"]["h24"]) if "volume" in d else None,
+            "liquidity": float(d["liquidity"]["usd"]) if "liquidity" in d else None,
+            "fdv": float(d["fdv"]) if d.get("fdv") else None,
+            "logo": d["info"].get("imageUrl") if "info" in d else None,
+        })
 
-    # sélection d’un token
-    choix = st.selectbox("Choisir un coin pour voir l’analyse", tokens["symbol"])
-    token = tokens[tokens["symbol"] == choix].iloc[0]
+    df = pd.DataFrame(tokens)
 
-    details = analyze_token(token["address"])
-    if details:
-        st.markdown(f"""
-        ## 📊 Analyse de **{token['symbol']}**
-        - 💰 Prix actuel : **{details['price']} USD**
-        - 📈 Volume 24h : **{details['volume_24h']}**
-        - 💦 Liquidité : **{details['liquidity']}**
-        - 👥 Holders (approx) : **{details['holders']}**
-        - 🏷️ FDV : **{details['fdv']}**
-        """)
+    # Score basé sur volume + liquidité
+    df["score"] = (
+        (df["volume_24h"].fillna(0) / df["volume_24h"].max()) * 5 +
+        (df["liquidity"].fillna(0) / df["liquidity"].max()) * 5
+    ).round(1).clip(0, 10)
 
-        # Graphique historique (ici factice)
-        if not details["history"].empty:
-            fig = px.line(details["history"], x="time", y="price", title=f"Évolution de {token['symbol']}")
-            st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("Impossible de récupérer l’analyse de ce token.")
+    return df
+
+
+# 📊 Analyse détaillée d’un token
+def analyze_token(address):
+    url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        print("Erreur analyse token:", response.text)
+        return None
+
+    data = response.json().get("pairs", [])
+    if not data:
+        return None
+
+    d = data[0]
+    details = {
+        "price": float(d["priceUsd"]) if d.get("priceUsd") else None,
+        "volume_24h": float(d["volume"]["h24"]) if "volume" in d else None,
+        "liquidity": float(d["liquidity"]["usd"]) if "liquidity" in d else None,
+        "fdv": float(d["fdv"]) if d.get("fdv") else None,
+        "holders": d["txns"]["h24"] if "txns" in d else None,  # approximation
+    }
+
+    # ⚠️ DexScreener n’a pas d’historique, on met juste le prix actuel
+    details["history"] = pd.DataFrame(
+        [{"time": 0, "price": details["price"]}]
+    ) if details["price"] else pd.DataFrame()
+
+    return details
 
