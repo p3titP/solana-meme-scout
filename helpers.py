@@ -2,21 +2,22 @@ import requests
 import pandas as pd
 
 
-# 🔍 Trending tokens sur Solana
+# 🔍 Récupère les meme coins trending sur Solana
 def get_trending_tokens(limit=20):
-    url = "https://api.dexscreener.com/latest/dex/tokens/solana"
+    url = "https://api.dexscreener.com/latest/dex/search?q=meme"
     response = requests.get(url)
 
     if response.status_code != 200:
         print("Erreur API DexScreener:", response.text)
         return pd.DataFrame()
 
-    data = response.json().get("pairs", [])
-    if not data:
+    # On garde uniquement les paires sur Solana
+    pairs = [p for p in response.json().get("pairs", []) if p.get("chainId") == "solana"]
+    if not pairs:
         return pd.DataFrame()
 
     tokens = []
-    for d in data[:limit]:
+    for d in pairs[:limit]:
         tokens.append({
             "symbol": d["baseToken"]["symbol"],
             "address": d["baseToken"]["address"],
@@ -29,7 +30,7 @@ def get_trending_tokens(limit=20):
 
     df = pd.DataFrame(tokens)
 
-    # Score simple
+    # Score basé sur volume + liquidité
     df["score"] = (
         (df["volume_24h"].fillna(0) / df["volume_24h"].max()) * 5 +
         (df["liquidity"].fillna(0) / df["liquidity"].max()) * 5
@@ -57,10 +58,10 @@ def analyze_token(address):
         "volume_24h": float(d["volume"]["h24"]) if "volume" in d else None,
         "liquidity": float(d["liquidity"]["usd"]) if "liquidity" in d else None,
         "fdv": float(d["fdv"]) if d.get("fdv") else None,
-        "holders": d["txns"]["h24"] if "txns" in d else None,
+        "holders": d["txns"]["h24"] if "txns" in d else None,  # approximation
     }
 
-    # petit historique factice (DexScreener ne donne pas directement)
+    # ⚠️ DexScreener n’a pas d’historique, on met juste le prix actuel
     details["history"] = pd.DataFrame(
         [{"time": 0, "price": details["price"]}]
     ) if details["price"] else pd.DataFrame()
