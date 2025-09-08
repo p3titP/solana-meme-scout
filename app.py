@@ -5,7 +5,7 @@ import string
 st.set_page_config(page_title="Entraînement Lettres & Logique", page_icon="🔠", layout="centered")
 
 # ---------------------------
-# STYLES (pour mimer la photo)
+# STYLES
 # ---------------------------
 st.markdown("""
 <style>
@@ -47,109 +47,80 @@ with cols_alpha[1]:
 st.divider()
 
 # =========================================
-# 2) EXERCICES : suites logiques (affichage photo)
+# 2) EXERCICES : suites logiques avec croix
 # =========================================
-st.header("2️⃣ Suites logiques (affichage identique à la photo)")
+st.header("2️⃣ Suites logiques en croix (verticale + horizontale)")
 
-# Banque d'exercices (tu peux en ajouter autant que tu veux)
-# Chaque question est une liste de 5 éléments avec un "?" au centre (index 2).
 exos = [
-    # ⬇️ Celui de ta photo
     {
-        "question": ["OUI", "NHK", "?", "LXO", "KYQ"],
-        "options":  ["ZDT", "UEA", "RGW", "SHC"],
-        "reponse":  "UEA",
-        "explication": "Déplacements réguliers (type César) par colonne ; parmi les 4 choix, **UEA** est le seul qui respecte simultanément les 3 colonnes."
+        "vertical": ["OUI", "NHK", "?", "LXO", "KYQ"],
+        "options": ["ZDT", "UEA", "RGW", "SHC"],
+        "reponse": "UEA",
+        "explication": (
+            "La logique est double :\n\n"
+            "👉 Verticalement : chaque ligne subit un décalage des lettres (OUI → NHK → … → LXO → KYQ).\n"
+            "👉 Horizontalement : les 3 colonnes (1ère lettre, 2e, 3e) forment aussi des suites régulières.\n\n"
+            "➡️ Seule **UEA** respecte à la fois la logique verticale et horizontale."
+        )
     },
     {
-        "question": ["A", "C", "?", "G", "I"],
-        "options":  ["D", "E", "F", "H"],
-        "reponse":  "E",
-        "explication": "On avance de 2 lettres à chaque ligne : A → C → E → G → I."
-    },
-    {
-        "question": ["BDF", "CEG", "?", "EGI", "FHJ"],
-        "options":  ["DEF", "DGH", "DFH", "DGI"],
-        "reponse":  "DFH",
-        "explication": "Dans chaque triplet, chaque lettre décale de +1 à la ligne suivante."
-    },
+        "vertical": ["A", "C", "?", "G", "I"],
+        "options": ["E", "F", "H", "K"],
+        "reponse": "E",
+        "explication": (
+            "👉 Verticalement : on saute une lettre à chaque fois (A → C → E → G → I).\n"
+            "👉 Horizontalement : ici simple cohérence alphabétique, seul **E** permet de garder la régularité."
+        )
+    }
 ]
 
-# État
 if "taj_idx" not in st.session_state:
-    st.session_state.taj_idx = 0  # on montrera le 1er exo (la photo)
-if "taj_round" not in st.session_state:
-    st.session_state.taj_round = 0
+    st.session_state.taj_idx = 0
 if "taj_choice" not in st.session_state:
     st.session_state.taj_choice = None
-if "taj_show_solution" not in st.session_state:
-    st.session_state.taj_show_solution = False
 
 exo = exos[st.session_state.taj_idx]
-rows = exo["question"]
-assert len(rows) == 5 and rows[2] == "?", "Chaque exercice doit avoir 5 lignes avec '?' au centre."
+
+rows = exo["vertical"]
 opts = exo["options"]
-assert len(opts) == 4, "Chaque exercice doit avoir 4 propositions."
 
 # ============
 # Rendu visuel
 # ============
-st.markdown('<div class="caption">Clique directement sur une des 4 propositions autour du “?”</div>', unsafe_allow_html=True)
+st.markdown('<div class="caption">Clique sur la bonne proposition autour du “?”</div>', unsafe_allow_html=True)
 
-def render_row(left=None, left_mid=None, center=None, right_mid=None, right=None, row_key="row"):
-    # 5 colonnes comme sur la photo : [gauche, mid-gauche, centre, mid-droite, droite]
-    cols = st.columns([1,1,1,1,1], gap="large")
-    with cols[0]:
-        if left is not None:
-            st.markdown(f'<div class="cell letter-big">{left}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="cell">&nbsp;</div>', unsafe_allow_html=True)
-    with cols[1]:
-        if left_mid is not None:
-            st.markdown(f'<div class="cell letter-big">{left_mid}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="cell">&nbsp;</div>', unsafe_allow_html=True)
-    with cols[2]:
-        st.markdown(f'<div class="cell letter-big">{center if center else "&nbsp;"}</div>', unsafe_allow_html=True)
-    with cols[3]:
-        if right_mid is not None:
-            st.markdown(f'<div class="cell letter-big">{right_mid}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="cell">&nbsp;</div>', unsafe_allow_html=True)
-    with cols[4]:
-        if right is not None:
-            st.markdown(f'<div class="cell letter-big">{right}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="cell">&nbsp;</div>', unsafe_allow_html=True)
+cols_top = st.columns(5, gap="large")
+for i in [0,1,3,4]:
+    cols_top[i].markdown('<div class="cell">&nbsp;</div>', unsafe_allow_html=True)
+cols_top[2].markdown(f'<div class="cell letter-big">{rows[0]}</div>', unsafe_allow_html=True)
 
-# Lignes 1 et 2 (uniquement au centre)
-render_row(center=rows[0], row_key="r0")
-render_row(center=rows[1], row_key="r1")
+cols2 = st.columns(5, gap="large")
+for i in [0,1,3,4]:
+    cols2[i].markdown('<div class="cell">&nbsp;</div>', unsafe_allow_html=True)
+cols2[2].markdown(f'<div class="cell letter-big">{rows[1]}</div>', unsafe_allow_html=True)
 
-# Ligne 3 (celle du “?”) avec 4 propositions autour
-cols_mid = st.columns([1,1,1,1,1], gap="large")
-with cols_mid[0]:
-    if st.button(opts[0], key=f"opt_{st.session_state.taj_round}_0", help="Choisir"):
-        st.session_state.taj_choice = opts[0]
-with cols_mid[1]:
-    if st.button(opts[1], key=f"opt_{st.session_state.taj_round}_1", help="Choisir"):
-        st.session_state.taj_choice = opts[1]
-with cols_mid[2]:
-    st.markdown(f'<div class="cell letter-big">?</div>', unsafe_allow_html=True)
-with cols_mid[3]:
-    if st.button(opts[2], key=f"opt_{st.session_state.taj_round}_2", help="Choisir"):
-        st.session_state.taj_choice = opts[2]
-with cols_mid[4]:
-    if st.button(opts[3], key=f"opt_{st.session_state.taj_round}_3", help="Choisir"):
-        st.session_state.taj_choice = opts[3]
+cols3 = st.columns(5, gap="large")
+if cols3[0].button(opts[0], key="opt0"):
+    st.session_state.taj_choice = opts[0]
+if cols3[1].button(opts[1], key="opt1"):
+    st.session_state.taj_choice = opts[1]
+cols3[2].markdown(f'<div class="cell letter-big">?</div>', unsafe_allow_html=True)
+if cols3[3].button(opts[2], key="opt2"):
+    st.session_state.taj_choice = opts[2]
+if cols3[4].button(opts[3], key="opt3"):
+    st.session_state.taj_choice = opts[3]
 
-# Lignes 4 et 5 (uniquement au centre)
-render_row(center=rows[3], row_key="r3")
-render_row(center=rows[4], row_key="r4")
+cols4 = st.columns(5, gap="large")
+for i in [0,1,3,4]:
+    cols4[i].markdown('<div class="cell">&nbsp;</div>', unsafe_allow_html=True)
+cols4[2].markdown(f'<div class="cell letter-big">{rows[3]}</div>', unsafe_allow_html=True)
 
-st.markdown('<div class="row-gap"></div>', unsafe_allow_html=True)
+cols5 = st.columns(5, gap="large")
+for i in [0,1,3,4]:
+    cols5[i].markdown('<div class="cell">&nbsp;</div>', unsafe_allow_html=True)
+cols5[2].markdown(f'<div class="cell letter-big">{rows[4]}</div>', unsafe_allow_html=True)
 
-# Vérification immédiate + explication
+# Correction
 if st.session_state.taj_choice is not None:
     if st.session_state.taj_choice == exo["reponse"]:
         st.success(f"✅ Bonne réponse : {exo['reponse']}")
@@ -157,21 +128,14 @@ if st.session_state.taj_choice is not None:
         st.error(f"❌ Mauvaise réponse. La bonne réponse était **{exo['reponse']}**.")
     st.info(f"💡 Explication : {exo['explication']}")
 
-# Actions
-c1, c2, c3 = st.columns(3)
+# Boutons
+c1, c2 = st.columns(2)
 with c1:
-    if st.button("🔄 Mélanger (nouvel exercice)", key="new_taj"):
+    if st.button("🔄 Nouvel exercice"):
         st.session_state.taj_idx = random.randrange(len(exos))
-        st.session_state.taj_round += 1
         st.session_state.taj_choice = None
         st.rerun()
 with c2:
-    if st.button("⏮️ Revenir à l'exercice de la photo", key="goto_photo"):
-        st.session_state.taj_idx = 0
-        st.session_state.taj_round += 1
-        st.session_state.taj_choice = None
-        st.rerun()
-with c3:
-    if st.button("♻️ Réinitialiser le choix", key="reset_choice"):
+    if st.button("♻️ Réinitialiser choix"):
         st.session_state.taj_choice = None
         st.rerun()
