@@ -27,4 +27,4 @@ if st.button("Vérifier"):
 # Nouveau tour
 if st.button("Nouvelle lettre"):
     st.session_state.lettre = random.choice(string.ascii_uppercase)
-    st.experimental_rerun()
+    st.rerun()
