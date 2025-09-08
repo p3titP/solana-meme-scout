@@ -2,7 +2,7 @@ import streamlit as st
 import random
 import string
 
-st.set_page_config(page_title="Jeu de l'Alphabet", page_icon="🔠", layout="centered")
+st.set_page_config(page_title="Jeu de l'Alphabet belle bête", page_icon="🔠", layout="centered")
 
 st.title("🔠 Jeu de l'Alphabet")
 
