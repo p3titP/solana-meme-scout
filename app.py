@@ -4,7 +4,7 @@ import string
 
 st.set_page_config(page_title="Jeu de l'Alphabet belle bête", page_icon="🔠", layout="centered")
 
-st.title("🔠 Jeu de l'Alphabet")
+st.title("🔠 Jeu de l'Alphabet pour les gros BG")
 
 # Générer une lettre aléatoire si elle n'existe pas déjà dans la session
 if "lettre" not in st.session_state:
