@@ -1,60 +1,30 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-from helpers import get_trending_tokens, analyze_token  # ✅ corrigé (plus utils !)
+import random
+import string
 
-st.set_page_config(page_title="Solana Meme Scout", layout="wide")
+st.set_page_config(page_title="Jeu de l'Alphabet", page_icon="🔠", layout="centered")
 
-st.title("🚀 Solana Meme Scout")
-st.markdown("Style Phantom • Scanner les meme coins Solana avec graphiques + score potentiel.")
+st.title("🔠 Jeu de l'Alphabet")
 
+# Générer une lettre aléatoire si elle n'existe pas déjà dans la session
+if "lettre" not in st.session_state:
+    st.session_state.lettre = random.choice(string.ascii_uppercase)
 
-# 🔍 Récupération des tokens
-tokens = get_trending_tokens(limit=15)
+# Afficher la lettre à deviner
+st.subheader(f"Quelle est la position de la lettre : **{st.session_state.lettre}** ?")
 
-if tokens.empty:
-    st.error("Aucun coin trouvé (erreur API ?)")
-else:
-    st.subheader("🔥 Meme Coins détectés avec Score")
+# Champ de réponse
+reponse = st.number_input("👉 Entrez le numéro de la lettre dans l'alphabet :", min_value=1, max_value=26, step=1)
 
-    # affichage style "cards" avec logos
-    for _, row in tokens.iterrows():
-        cols = st.columns([1, 3, 2])
-        with cols[0]:
-            if row.get("logo"):
-                st.image(row["logo"], width=60)
-            else:
-                st.write("🪙")
-        with cols[1]:
-            st.markdown(f"### {row['symbol']}")
-            st.markdown(
-                f"- 💰 Prix : **{row['price']:.6f} USD**\n"
-                f"- 📈 Volume 24h : **{row['volume_24h']}**\n"
-                f"- 💦 Liquidité : **{row['liquidity']}**"
-            )
-        with cols[2]:
-            st.metric("⭐ Score", f"{row['score']}/10")
-
-        st.divider()
-
-    # sélection d’un token
-    choix = st.selectbox("Choisir un coin pour voir l’analyse", tokens["symbol"])
-    token = tokens[tokens["symbol"] == choix].iloc[0]
-
-    details = analyze_token(token["address"])
-    if details:
-        st.markdown(f"""
-        ## 📊 Analyse de **{token['symbol']}**
-        - 💰 Prix actuel : **{details['price']} USD**
-        - 📈 Volume 24h : **{details['volume_24h']}**
-        - 💦 Liquidité : **{details['liquidity']}**
-        - 👥 Holders (approx) : **{details['holders']}**
-        - 🏷️ FDV : **{details['fdv']}**
-        """)
-
-        # Graphique historique (ici factice car DexScreener ne donne pas l’historique complet)
-        if not details["history"].empty:
-            fig = px.line(details["history"], x="time", y="price", title=f"Évolution de {token['symbol']}")
-            st.plotly_chart(fig, use_container_width=True)
+# Vérification de la réponse
+if st.button("Vérifier"):
+    correct = string.ascii_uppercase.index(st.session_state.lettre) + 1
+    if reponse == correct:
+        st.success(f"✅ Bravo ! {st.session_state.lettre} est bien la {correct}ᵉ lettre de l'alphabet.")
     else:
-        st.warning("Impossible de récupérer l’analyse de ce token.")
+        st.error(f"❌ Oups ! La bonne réponse était {correct}.")
+
+# Nouveau tour
+if st.button("Nouvelle lettre"):
+    st.session_state.lettre = random.choice(string.ascii_uppercase)
+    st.experimental_rerun()
