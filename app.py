@@ -20,9 +20,9 @@ reponse = st.number_input("👉 Entrez le numéro de la lettre dans l'alphabet :
 if st.button("Vérifier"):
     correct = string.ascii_uppercase.index(st.session_state.lettre) + 1
     if reponse == correct:
-        st.success(f"✅ Bravo ! {st.session_state.lettre} est bien la {correct}ᵉ lettre de l'alphabet.")
+        st.success(f"✅ Bravo kassos! {st.session_state.lettre} est bien la {correct}ᵉ lettre de l'alphabet.")
     else:
-        st.error(f"❌ Oups ! La bonne réponse était {correct}.")
+        st.error(f"❌ Oups gros naze! La bonne réponse était {correct}.")
 
 # Nouveau tour
 if st.button("Nouvelle lettre"):
