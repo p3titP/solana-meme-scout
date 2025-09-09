@@ -2,7 +2,7 @@ import streamlit as st
 import random
 import string
 
-st.set_page_config(page_title="Entraînement Lettres & Logique", page_icon="🔠", layout="centered")
+st.set_page_config(page_title="Entraînement Lettres, Logique & Maths", page_icon="🔠", layout="centered")
 
 # ---------------------------
 # STYLES
@@ -18,7 +18,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🔠 Entraînement Lettres & Logique (style TAJ)")
+st.title("🔠 Entraînement Lettres, Logique & Maths (style TAJ)")
 
 # =========================================
 # 1) EXERCICE : position dans l'alphabet
@@ -29,13 +29,13 @@ if "lettre" not in st.session_state:
     st.session_state.lettre = random.choice(string.ascii_uppercase)
 
 st.subheader(f"Quelle est la position de la lettre : **{st.session_state.lettre}** ?")
-reponse = st.number_input("👉 Entrez le numéro :", min_value=1, max_value=26, step=1)
+reponse_alpha = st.number_input("👉 Entrez le numéro :", min_value=1, max_value=26, step=1)
 
 cols_alpha = st.columns(2)
 with cols_alpha[0]:
     if st.button("Vérifier", key="verif_alpha"):
         correct = string.ascii_uppercase.index(st.session_state.lettre) + 1
-        if reponse == correct:
+        if reponse_alpha == correct:
             st.success(f"✅ Bravo ! {st.session_state.lettre} est bien la {correct}ᵉ lettre.")
         else:
             st.error(f"❌ Mauvaise réponse. La bonne réponse était {correct}.")
@@ -80,13 +80,9 @@ if "taj_choice" not in st.session_state:
     st.session_state.taj_choice = None
 
 exo = exos[st.session_state.taj_idx]
-
 rows = exo["vertical"]
 opts = exo["options"]
 
-# ============
-# Rendu visuel
-# ============
 st.markdown('<div class="caption">Clique sur la bonne proposition autour du “?”</div>', unsafe_allow_html=True)
 
 cols_top = st.columns(5, gap="large")
@@ -120,7 +116,6 @@ for i in [0,1,3,4]:
     cols5[i].markdown('<div class="cell">&nbsp;</div>', unsafe_allow_html=True)
 cols5[2].markdown(f'<div class="cell letter-big">{rows[4]}</div>', unsafe_allow_html=True)
 
-# Correction
 if st.session_state.taj_choice is not None:
     if st.session_state.taj_choice == exo["reponse"]:
         st.success(f"✅ Bonne réponse : {exo['reponse']}")
@@ -128,7 +123,6 @@ if st.session_state.taj_choice is not None:
         st.error(f"❌ Mauvaise réponse. La bonne réponse était **{exo['reponse']}**.")
     st.info(f"💡 Explication : {exo['explication']}")
 
-# Boutons
 c1, c2 = st.columns(2)
 with c1:
     if st.button("🔄 Nouvel exercice"):
@@ -138,4 +132,33 @@ with c1:
 with c2:
     if st.button("♻️ Réinitialiser choix"):
         st.session_state.taj_choice = None
+        st.rerun()
+
+st.divider()
+
+# =========================================
+# 3) EXERCICE : tables de multiplication 10–20
+# =========================================
+st.header("3️⃣ Tables de multiplication (10 à 20)")
+
+if "mult_calc" not in st.session_state:
+    a, b = random.randint(10, 20), random.randint(10, 20)
+    st.session_state.mult_calc = (a, b)
+
+a, b = st.session_state.mult_calc
+st.subheader(f"Calcule : **{a} × {b}**")
+
+reponse_mult = st.number_input("👉 Entrez votre réponse :", min_value=0, step=1)
+
+cols_mult = st.columns(2)
+with cols_mult[0]:
+    if st.button("Vérifier", key="verif_mult"):
+        correct = a * b
+        if reponse_mult == correct:
+            st.success(f"✅ Correct ! {a} × {b} = {correct}")
+        else:
+            st.error(f"❌ Faux. La bonne réponse est {correct}.")
+with cols_mult[1]:
+    if st.button("Nouveau calcul", key="new_mult"):
+        st.session_state.mult_calc = (random.randint(10, 20), random.randint(10, 20))
         st.rerun()
