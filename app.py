@@ -137,13 +137,17 @@ with c2:
 st.divider()
 
 # =========================================
-# 3) EXERCICE : tables de multiplication 10–20
+# 3) EXERCICES : tables de multiplication (10 → 20)
 # =========================================
 st.header("3️⃣ Tables de multiplication (10 à 20)")
 
-if "mult_calc" not in st.session_state:
-    a, b = random.randint(10, 20), random.randint(10, 20)
-    st.session_state.mult_calc = (a, b)
+# Choix de la table
+table = st.selectbox("👉 Choisis une table :", list(range(10, 21)), index=0)
+
+# Générer un calcul si nécessaire
+if "mult_calc" not in st.session_state or st.session_state.mult_calc[0] != table:
+    n = random.randint(1, 20)
+    st.session_state.mult_calc = (table, n)
 
 a, b = st.session_state.mult_calc
 st.subheader(f"Calcule : **{a} × {b}**")
@@ -160,5 +164,5 @@ with cols_mult[0]:
             st.error(f"❌ Faux. La bonne réponse est {correct}.")
 with cols_mult[1]:
     if st.button("Nouveau calcul", key="new_mult"):
-        st.session_state.mult_calc = (random.randint(10, 20), random.randint(10, 20))
+        st.session_state.mult_calc = (table, random.randint(1, 20))
         st.rerun()
