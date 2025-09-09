@@ -46,7 +46,7 @@ with cols_alpha[1]:
 st.divider()
 
 # =========================================
-# 2) EXERCICES : suites logiques avec croix
+# 2) EXERCICES : suites logiques
 # =========================================
 st.header("2️⃣ Suites logiques en croix (verticale + horizontale)")
 
@@ -164,6 +164,11 @@ with cols_mult[1]:
         st.session_state.mult_calc = (table, random.randint(1, 20))
         st.rerun()
 
+# 👉 Aide : afficher la table complète
+with st.expander(f"📖 Afficher la table de {table}"):
+    for i in range(1, 21):
+        st.write(f"{table} × {i} = {table*i}")
+
 st.divider()
 
 # =========================================
@@ -191,6 +196,11 @@ with cols_cube[1]:
     if st.button("Nouveau cube", key="new_cube"):
         st.session_state.cube_n = random.randint(1, 13)
         st.rerun()
+
+# 👉 Aide : afficher les cubes de 1 à 13
+with st.expander("📖 Afficher les cubes de 1 à 13"):
+    for i in range(1, 14):
+        st.write(f"{i}³ = {i**3}")
 
 st.divider()
 
@@ -230,3 +240,8 @@ with c2:
 if st.button("🔄 Nouveau nombre premier", key="new_prime"):
     st.session_state.prime_n = random.randint(2, 100)
     st.rerun()
+
+# 👉 Aide : afficher tous les nombres premiers <= 100
+with st.expander("📖 Afficher les nombres premiers jusqu’à 100"):
+    primes = [x for x in range(2, 101) if est_premier(x)]
+    st.write(", ".join(map(str, primes)))
