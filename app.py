@@ -29,7 +29,7 @@ if "lettre" not in st.session_state:
     st.session_state.lettre = random.choice(string.ascii_uppercase)
 
 st.subheader(f"Quelle est la position de la lettre : **{st.session_state.lettre}** ?")
-reponse_alpha = st.number_input("👉 Entrez le numéro :", min_value=1, max_value=26, step=1)
+reponse_alpha = st.number_input("💩 Entrez le numéro :", min_value=1, max_value=26, step=1)
 
 cols_alpha = st.columns(2)
 with cols_alpha[0]:
@@ -142,7 +142,7 @@ st.divider()
 st.header("3️⃣ Tables de multiplication (10 à 20)")
 
 # Choix de la table
-table = st.selectbox("👉 Choisis une table :", list(range(10, 21)), index=0)
+table = st.selectbox("🖕🏿 Choisis une table :", list(range(10, 21)), index=0)
 
 # Générer un calcul si nécessaire
 if "mult_calc" not in st.session_state or st.session_state.mult_calc[0] != table:
@@ -152,7 +152,7 @@ if "mult_calc" not in st.session_state or st.session_state.mult_calc[0] != table
 a, b = st.session_state.mult_calc
 st.subheader(f"Calcule : **{a} × {b}**")
 
-reponse_mult = st.number_input("👉 Entrez votre réponse :", min_value=0, step=1)
+reponse_mult = st.number_input("🖕 Entrez votre réponse :", min_value=0, step=1)
 
 cols_mult = st.columns(2)
 with cols_mult[0]:
