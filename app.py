@@ -279,3 +279,59 @@ if st.button("🔄 Nouveau nombre", key="new_prime"):
 with st.expander("📖 Afficher les nombres premiers jusqu’à 100"):
     primes = [x for x in range(2, 101) if est_premier(x)]
     st.write(", ".join(map(str, primes)))
+import streamlit as st
+import random
+import string
+
+st.set_page_config(page_title="Entraînement Lettres, Logique & Maths", page_icon="🔠", layout="centered")
+
+# ---------------------------
+# STYLES
+# ---------------------------
+st.markdown("""
+<style>
+.block-container { padding-top: 2rem; max-width: 980px; }
+.letter-big { font-size: 38px; font-weight: 800; text-align: center; letter-spacing: .20rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+.cell { display:flex; align-items:center; justify-content:center; height:64px; }
+.option-btn { width:100%; height:56px; font-size:18px; font-weight:700; }
+.caption { color: #6b7280; text-align:center; margin-bottom: .25rem; }
+.section { margin-top: 18px; margin-bottom: 18px; }
+
+/* ---- STYLE IMAGE ---- */
+.image-box {
+    background-color: #f9fafb;  /* gris clair */
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    text-align: center;
+}
+.image-box img {
+    border-radius: 12px;
+    max-width: 100%;
+    height: auto;
+}
+.image-caption {
+    color: #6b7280;
+    font-size: 14px;
+    margin-top: .5rem;
+    font-style: italic;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.title("🔠 Entraînement Lettres, Logique & Maths (style TAJ)")
+
+# ---------------------------
+# IMAGE STYLISÉE
+# ---------------------------
+with st.container():
+    st.markdown('<div class="image-box">', unsafe_allow_html=True)
+    st.image("Gemini_Generated_Image_exwfzoexwfzoexwf.png", use_column_width=True)
+    st.markdown('<div class="image-caption">Exemple d’un intérieur moderne et lumineux</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ---------------------------
+# Ton code d’exercices continue ici...
+# ---------------------------
