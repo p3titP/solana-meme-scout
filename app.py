@@ -2,7 +2,14 @@ import streamlit as st
 import random
 import string
 
-st.set_page_config(page_title="Entraînement Lettres, Logique & Maths", page_icon="🔠", layout="centered")
+# ---------------------------
+# CONFIG
+# ---------------------------
+st.set_page_config(
+    page_title="Entraînement Lettres, Logique & Maths",
+    page_icon="🔠",
+    layout="centered"
+)
 
 # ---------------------------
 # STYLES
@@ -15,10 +22,44 @@ st.markdown("""
 .option-btn { width:100%; height:56px; font-size:18px; font-weight:700; }
 .caption { color: #6b7280; text-align:center; margin-bottom: .25rem; }
 .section { margin-top: 18px; margin-bottom: 18px; }
+
+/* ---- STYLE IMAGE ---- */
+.image-box {
+    background-color: #f9fafb;  /* gris clair */
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    text-align: center;
+}
+.image-box img {
+    border-radius: 12px;
+    max-width: 100%;
+    height: auto;
+}
+.image-caption {
+    color: #6b7280;
+    font-size: 14px;
+    margin-top: .5rem;
+    font-style: italic;
+}
 </style>
 """, unsafe_allow_html=True)
 
+# ---------------------------
+# TITRE
+# ---------------------------
 st.title("🔠 Entraînement Lettres, Logique & Maths (style TAJ)")
+
+# ---------------------------
+# IMAGE EN-TÊTE
+# ---------------------------
+with st.container():
+    st.markdown('<div class="image-box">', unsafe_allow_html=True)
+    st.image("Gemini_Generated_Image_exwfzoexwfzoexwf.png", use_column_width=True)
+    st.markdown('<div class="image-caption">Exemple d’un intérieur moderne et lumineux</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================================
 # 1) EXERCICE : position dans l'alphabet
@@ -46,52 +87,41 @@ with cols_alpha[1]:
 st.divider()
 
 # =========================================
-# 2) EXERCICES : CROISEMENT (verticale + horizontale) -- style Tage Mage
+# 2) EXERCICES : CROISEMENT
 # =========================================
 st.header("2️⃣ Suites croisées (verticale + horizontale) — trouve l'intersection")
 
-# Banque d'exos croisés : chaque exo contient :
-# - vertical : liste de 5 éléments (strings)
-# - horizontal : liste de 5 éléments (strings)
-# - options : liste de 5 propositions (strings)
-# - reponse : valeur correcte de la case centrale (string)
-# - explication : explication texte
 cross_exos = [
-    # exo 1 : nombres (centre = 5)
     {
         "vertical": ["3", "4", "5", "6", "7"],
         "horizontal": ["1", "3", "5", "7", "9"],
         "options": ["1", "3", "5", "7", "9"],
         "reponse": "5",
-        "explication": "Verticalement la suite augmente de +1 (3,4,5,6,7). Horizontalement la suite augmente de +2 (1,3,5,7,9). Le centre commun est 5."
+        "explication": "Verticalement la suite augmente de +1. Horizontalement +2. Centre commun = 5."
     },
-    # exo 2 : lettres (centre = G)
     {
         "vertical": ["C", "E", "G", "I", "K"],
         "horizontal": ["E", "F", "G", "H", "I"],
         "options": ["C", "E", "G", "H", "I"],
         "reponse": "G",
-        "explication": "Verticalement on saute 2 lettres (C,E,G,I,K). Horizontalement progression +1 (E,F,G,H,I). Le centre commun est G."
+        "explication": "Verticalement on saute 2 lettres. Horizontalement progression +1. Centre = G."
     },
-    # exo 3 : nombres (centre = 12)
     {
         "vertical": ["6", "9", "12", "15", "18"],
         "horizontal": ["2", "7", "12", "17", "22"],
         "options": ["2", "7", "12", "17", "22"],
         "reponse": "12",
-        "explication": "Verticalement step = +3 (6,9,12,15,18). Horizontalement step = +5 (2,7,12,17,22). Centre : 12."
+        "explication": "Verticalement step = +3. Horizontalement step = +5. Centre = 12."
     },
-    # exo 4 : lettres (centre = M)
     {
         "vertical": ["E", "I", "M", "Q", "U"],
         "horizontal": ["G", "J", "M", "P", "S"],
         "options": ["E", "G", "M", "P", "S"],
         "reponse": "M",
-        "explication": "Verticalement +4 lettres (E,I,M,Q,U). Horizontalement +3 lettres (G,J,M,P,S). Centre : M."
+        "explication": "Verticalement +4 lettres. Horizontalement +3 lettres. Centre = M."
     }
 ]
 
-# état
 if "cross_idx" not in st.session_state:
     st.session_state.cross_idx = 0
 if "cross_round" not in st.session_state:
@@ -105,47 +135,34 @@ horiz = cross["horizontal"]
 opts = cross["options"]
 correct = cross["reponse"]
 
-st.markdown('<div class="caption">Tu vois la colonne centrale (verticale) et la ligne centrale (horizontale). La case au centre est la même pour les deux suites — choisis la bonne option ci-dessous.</div>', unsafe_allow_html=True)
+st.markdown('<div class="caption">Tu vois la colonne centrale et la ligne centrale. La case au centre est la même pour les deux suites.</div>', unsafe_allow_html=True)
 
-# fonction d'affichage de cellule
-def display_cell(text, is_center=False):
-    """Retourne le HTML pour une cellule (text)."""
+def display_cell(text):
     if text is None:
         st.markdown('<div class="cell">&nbsp;</div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="cell letter-big">{text}</div>', unsafe_allow_html=True)
 
-# on affiche la grille 5x5 "croisée" :
-# - pour les lignes 0,1,3,4 : seule la colonne 2 (centre) montre l'élément vertical correspondant
-# - pour la ligne 2 : on affiche la suite horizontale (avec centre remplacé par '?', ou la réponse si déjà choisie)
 center_shown = correct if st.session_state.cross_choice is not None else "?"
-
 for i in range(5):
     cols = st.columns(5, gap="large")
     for j in range(5):
         with cols[j]:
-            # centre réel (i==2 and j==2)
             if i == 2 and j == 2:
                 display_cell(center_shown)
-            # colonne centrale (j==2) pour lignes autres que centre : vertical element
             elif j == 2:
                 display_cell(vert[i])
-            # ligne centrale (i==2) pour colonnes autres que centre : horizontal element
             elif i == 2:
                 display_cell(horiz[j])
             else:
                 display_cell(None)
 
-st.markdown("")  # petit espace
-
-# Boutons d'options (5 choix)
 opt_cols = st.columns(5, gap="small")
 for idx, opt in enumerate(opts):
     with opt_cols[idx]:
-        if st.button(opt, key=f"cross_opt_{st.session_state.cross_round}_{idx}", help="Choisir cette option"):
+        if st.button(opt, key=f"cross_opt_{st.session_state.cross_round}_{idx}"):
             st.session_state.cross_choice = opt
 
-# Feedback
 if st.session_state.cross_choice is not None:
     if st.session_state.cross_choice == correct:
         st.success(f"✅ Bonne réponse : **{correct}**")
@@ -153,7 +170,6 @@ if st.session_state.cross_choice is not None:
         st.error(f"❌ Mauvaise réponse. La bonne réponse était **{correct}** (tu as choisi {st.session_state.cross_choice}).")
     st.info(f"💡 Explication : {cross['explication']}")
 
-# Actions : nouvel exo / reset choix / revenir au premier exo
 c1, c2, c3 = st.columns([1,1,1])
 with c1:
     if st.button("🔄 Mélanger (nouvel exo)", key=f"cross_new"):
@@ -175,10 +191,9 @@ with c3:
 st.divider()
 
 # =========================================
-# 3) EXERCICES : tables de multiplication (10 → 20)
+# 3) TABLES DE MULTIPLICATION
 # =========================================
 st.header("3️⃣ Tables de multiplication (10 à 20)")
-
 table = st.selectbox("👉 Choisis une table :", list(range(10, 21)), index=0, key="table_select")
 
 if "mult_calc" not in st.session_state or st.session_state.mult_calc[0] != table:
@@ -209,10 +224,9 @@ with st.expander(f"📖 Afficher la table de {table}"):
 st.divider()
 
 # =========================================
-# 4) EXERCICE : cubes (jusqu’à 13³)
+# 4) CUBES
 # =========================================
 st.header("4️⃣ Les cubes (jusqu’à 13³)")
-
 if "cube_n" not in st.session_state:
     st.session_state.cube_n = random.randint(1, 13)
 
@@ -240,10 +254,9 @@ with st.expander("📖 Afficher les cubes de 1 à 13"):
 st.divider()
 
 # =========================================
-# 5) EXERCICE : nombres premiers
+# 5) NOMBRES PREMIERS
 # =========================================
 st.header("5️⃣ Les nombres premiers")
-
 if "prime_n" not in st.session_state:
     st.session_state.prime_n = random.randint(2, 100)
 
