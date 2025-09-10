@@ -1,6 +1,7 @@
 import streamlit as st
 import random
 import string
+import os
 
 # ---------------------------
 # CONFIG
@@ -25,7 +26,7 @@ st.markdown("""
 
 /* ---- STYLE IMAGE ---- */
 .image-box {
-    background-color: #f9fafb;  /* gris clair */
+    background-color: #f9fafb;
     border: 1px solid #e5e7eb;
     border-radius: 16px;
     padding: 1rem;
@@ -53,18 +54,32 @@ st.markdown("""
 st.title("🔠 Entraînement Lettres, Logique & Maths (style TAJ)")
 
 # ---------------------------
-# IMAGE EN-TÊTE
+# IMAGE D’ACCUEIL
 # ---------------------------
-with st.container():
-    st.markdown('<div class="image-box">', unsafe_allow_html=True)
-    st.image("Gemini_Generated_Image_exwfzoexwfzoexwf.png", use_column_width=True)
-    st.markdown('<div class="image-caption">Exemple d’un intérieur moderne et lumineux</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+img_path = "Gemini_Generated_Image_exwfzoexwfzoexwf.png"
+if os.path.exists(img_path):
+    with st.container():
+        st.markdown('<div class="image-box">', unsafe_allow_html=True)
+        st.image(img_path, use_container_width=True)
+        st.markdown('<div class="image-caption">Exemple d’un intérieur moderne et lumineux</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+else:
+    st.warning("⚠️ Image introuvable : ajoute le fichier dans le même dossier que app.py")
+
+# ---------------------------
+# OUTIL : feedback commun
+# ---------------------------
+def feedback(condition, msg_ok, msg_fail):
+    if condition:
+        st.success(msg_ok)
+    else:
+        st.error(msg_fail)
 
 # =========================================
 # 1) EXERCICE : position dans l'alphabet
 # =========================================
 st.header("1️⃣ Jeu de l'alphabet")
+
 if "lettre" not in st.session_state:
     st.session_state.lettre = random.choice(string.ascii_uppercase)
 
@@ -75,10 +90,11 @@ cols_alpha = st.columns(2)
 with cols_alpha[0]:
     if st.button("Vérifier", key="verif_alpha"):
         correct = string.ascii_uppercase.index(st.session_state.lettre) + 1
-        if reponse_alpha == correct:
-            st.success(f"✅ Bravo ! {st.session_state.lettre} est bien la {correct}ᵉ lettre.")
-        else:
-            st.error(f"❌ Mauvaise réponse. La bonne réponse était {correct}.")
+        feedback(
+            reponse_alpha == correct,
+            f"✅ Bravo ! {st.session_state.lettre} est bien la {correct}ᵉ lettre.",
+            f"❌ Mauvaise réponse. La bonne réponse était {correct}."
+        )
 with cols_alpha[1]:
     if st.button("Nouvelle lettre", key="new_alpha"):
         st.session_state.lettre = random.choice(string.ascii_uppercase)
@@ -87,39 +103,15 @@ with cols_alpha[1]:
 st.divider()
 
 # =========================================
-# 2) EXERCICES : CROISEMENT
+# 2) EXERCICES : Suites croisées
 # =========================================
 st.header("2️⃣ Suites croisées (verticale + horizontale) — trouve l'intersection")
 
 cross_exos = [
-    {
-        "vertical": ["3", "4", "5", "6", "7"],
-        "horizontal": ["1", "3", "5", "7", "9"],
-        "options": ["1", "3", "5", "7", "9"],
-        "reponse": "5",
-        "explication": "Verticalement la suite augmente de +1. Horizontalement +2. Centre commun = 5."
-    },
-    {
-        "vertical": ["C", "E", "G", "I", "K"],
-        "horizontal": ["E", "F", "G", "H", "I"],
-        "options": ["C", "E", "G", "H", "I"],
-        "reponse": "G",
-        "explication": "Verticalement on saute 2 lettres. Horizontalement progression +1. Centre = G."
-    },
-    {
-        "vertical": ["6", "9", "12", "15", "18"],
-        "horizontal": ["2", "7", "12", "17", "22"],
-        "options": ["2", "7", "12", "17", "22"],
-        "reponse": "12",
-        "explication": "Verticalement step = +3. Horizontalement step = +5. Centre = 12."
-    },
-    {
-        "vertical": ["E", "I", "M", "Q", "U"],
-        "horizontal": ["G", "J", "M", "P", "S"],
-        "options": ["E", "G", "M", "P", "S"],
-        "reponse": "M",
-        "explication": "Verticalement +4 lettres. Horizontalement +3 lettres. Centre = M."
-    }
+    {"vertical": ["3", "4", "5", "6", "7"], "horizontal": ["1", "3", "5", "7", "9"], "options": ["1", "3", "5", "7", "9"], "reponse": "5", "explication": "Verticalement : +1. Horizontalement : +2. Centre commun = 5."},
+    {"vertical": ["C", "E", "G", "I", "K"], "horizontal": ["E", "F", "G", "H", "I"], "options": ["C", "E", "G", "H", "I"], "reponse": "G", "explication": "Verticalement : +2 lettres. Horizontalement : +1. Centre = G."},
+    {"vertical": ["6", "9", "12", "15", "18"], "horizontal": ["2", "7", "12", "17", "22"], "options": ["2", "7", "12", "17", "22"], "reponse": "12", "explication": "Verticalement : +3. Horizontalement : +5. Centre = 12."},
+    {"vertical": ["E", "I", "M", "Q", "U"], "horizontal": ["G", "J", "M", "P", "S"], "options": ["E", "G", "M", "P", "S"], "reponse": "M", "explication": "Verticalement : +4 lettres. Horizontalement : +3. Centre = M."}
 ]
 
 if "cross_idx" not in st.session_state:
@@ -130,12 +122,9 @@ if "cross_choice" not in st.session_state:
     st.session_state.cross_choice = None
 
 cross = cross_exos[st.session_state.cross_idx]
-vert = cross["vertical"]
-horiz = cross["horizontal"]
-opts = cross["options"]
-correct = cross["reponse"]
+vert, horiz, opts, correct = cross["vertical"], cross["horizontal"], cross["options"], cross["reponse"]
 
-st.markdown('<div class="caption">Tu vois la colonne centrale et la ligne centrale. La case au centre est la même pour les deux suites.</div>', unsafe_allow_html=True)
+st.markdown('<div class="caption">La colonne centrale et la ligne centrale se croisent. Trouve la valeur au centre.</div>', unsafe_allow_html=True)
 
 def display_cell(text):
     if text is None:
@@ -164,25 +153,26 @@ for idx, opt in enumerate(opts):
             st.session_state.cross_choice = opt
 
 if st.session_state.cross_choice is not None:
-    if st.session_state.cross_choice == correct:
-        st.success(f"✅ Bonne réponse : **{correct}**")
-    else:
-        st.error(f"❌ Mauvaise réponse. La bonne réponse était **{correct}** (tu as choisi {st.session_state.cross_choice}).")
+    feedback(
+        st.session_state.cross_choice == correct,
+        f"✅ Bonne réponse : **{correct}**",
+        f"❌ Mauvaise réponse. Correct = **{correct}**, tu as choisi {st.session_state.cross_choice}."
+    )
     st.info(f"💡 Explication : {cross['explication']}")
 
 c1, c2, c3 = st.columns([1,1,1])
 with c1:
-    if st.button("🔄 Mélanger (nouvel exo)", key=f"cross_new"):
+    if st.button("🔄 Mélanger (nouvel exo)"):
         st.session_state.cross_idx = random.randrange(len(cross_exos))
         st.session_state.cross_round += 1
         st.session_state.cross_choice = None
         st.rerun()
 with c2:
-    if st.button("♻️ Réinitialiser le choix", key="cross_reset"):
+    if st.button("♻️ Réinitialiser"):
         st.session_state.cross_choice = None
         st.rerun()
 with c3:
-    if st.button("⏮️ Revenir au 1ᵉʳ exo", key="cross_first"):
+    if st.button("⏮️ Revenir au 1ᵉʳ exo"):
         st.session_state.cross_idx = 0
         st.session_state.cross_round += 1
         st.session_state.cross_choice = None
@@ -191,10 +181,11 @@ with c3:
 st.divider()
 
 # =========================================
-# 3) TABLES DE MULTIPLICATION
+# 3) Tables de multiplication (10 à 20)
 # =========================================
 st.header("3️⃣ Tables de multiplication (10 à 20)")
-table = st.selectbox("👉 Choisis une table :", list(range(10, 21)), index=0, key="table_select")
+
+table = st.selectbox("👉 Choisis une table :", list(range(10, 21)), index=0)
 
 if "mult_calc" not in st.session_state or st.session_state.mult_calc[0] != table:
     n = random.randint(1, 20)
@@ -202,18 +193,19 @@ if "mult_calc" not in st.session_state or st.session_state.mult_calc[0] != table
 
 a, b = st.session_state.mult_calc
 st.subheader(f"Calcule : **{a} × {b}**")
-reponse_mult = st.number_input("👉 Entrez votre réponse :", min_value=0, step=1, key="mult_input")
+reponse_mult = st.number_input("👉 Entrez votre réponse :", min_value=0, step=1)
 
 cols_mult = st.columns(2)
 with cols_mult[0]:
-    if st.button("Vérifier", key="verif_mult"):
+    if st.button("Vérifier"):
         correct_mult = a * b
-        if reponse_mult == correct_mult:
-            st.success(f"✅ Correct ! {a} × {b} = {correct_mult}")
-        else:
-            st.error(f"❌ Faux. La bonne réponse est {correct_mult}.")
+        feedback(
+            reponse_mult == correct_mult,
+            f"✅ Correct ! {a} × {b} = {correct_mult}",
+            f"❌ Faux. La bonne réponse est {correct_mult}."
+        )
 with cols_mult[1]:
-    if st.button("Nouveau calcul", key="new_mult"):
+    if st.button("Nouveau calcul"):
         st.session_state.mult_calc = (table, random.randint(1, 20))
         st.rerun()
 
@@ -224,9 +216,10 @@ with st.expander(f"📖 Afficher la table de {table}"):
 st.divider()
 
 # =========================================
-# 4) CUBES
+# 4) Cubes (jusqu’à 13³)
 # =========================================
 st.header("4️⃣ Les cubes (jusqu’à 13³)")
+
 if "cube_n" not in st.session_state:
     st.session_state.cube_n = random.randint(1, 13)
 
@@ -238,12 +231,13 @@ cols_cube = st.columns(2)
 with cols_cube[0]:
     if st.button("Vérifier", key="verif_cube"):
         correct_cube = n ** 3
-        if reponse_cube == correct_cube:
-            st.success(f"✅ Correct ! {n}³ = {correct_cube}")
-        else:
-            st.error(f"❌ Faux. La bonne réponse est {correct_cube}.")
+        feedback(
+            reponse_cube == correct_cube,
+            f"✅ Correct ! {n}³ = {correct_cube}",
+            f"❌ Faux. La bonne réponse est {correct_cube}."
+        )
 with cols_cube[1]:
-    if st.button("Nouveau cube", key="new_cube"):
+    if st.button("Nouveau cube"):
         st.session_state.cube_n = random.randint(1, 13)
         st.rerun()
 
@@ -254,9 +248,10 @@ with st.expander("📖 Afficher les cubes de 1 à 13"):
 st.divider()
 
 # =========================================
-# 5) NOMBRES PREMIERS
+# 5) Nombres premiers
 # =========================================
 st.header("5️⃣ Les nombres premiers")
+
 if "prime_n" not in st.session_state:
     st.session_state.prime_n = random.randint(2, 100)
 
@@ -273,19 +268,21 @@ st.subheader(f"Ce nombre est-il premier ? 👉 **{nprime}**")
 
 c1, c2 = st.columns(2)
 with c1:
-    if st.button("✅ Premier", key="prime_yes"):
-        if est_premier(nprime):
-            st.success(f"✅ Correct ! {nprime} est bien premier.")
-        else:
-            st.error(f"❌ Faux. {nprime} n’est pas premier.")
+    if st.button("✅ Premier"):
+        feedback(
+            est_premier(nprime),
+            f"✅ Correct ! {nprime} est bien premier.",
+            f"❌ Faux. {nprime} n’est pas premier."
+        )
 with c2:
-    if st.button("❌ Non premier", key="prime_no"):
-        if not est_premier(nprime):
-            st.success(f"✅ Correct ! {nprime} n’est pas premier.")
-        else:
-            st.error(f"❌ Faux. {nprime} est premier.")
+    if st.button("❌ Non premier"):
+        feedback(
+            not est_premier(nprime),
+            f"✅ Correct ! {nprime} n’est pas premier.",
+            f"❌ Faux. {nprime} est premier."
+        )
 
-if st.button("🔄 Nouveau nombre", key="new_prime"):
+if st.button("🔄 Nouveau nombre"):
     st.session_state.prime_n = random.randint(2, 100)
     st.rerun()
 
