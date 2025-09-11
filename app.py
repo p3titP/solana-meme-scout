@@ -78,12 +78,12 @@ def feedback(condition, msg_ok, msg_fail):
 # =========================================
 # 1) EXERCICE : position dans l'alphabet
 # =========================================
-st.header("1️⃣ Jeu de l'alphabet")
+st.header("1️⃣ Jeu de l'alphabet lettres des nombres premiers B,C,E,G,K,M,Q,S,W")
 
 if "lettre" not in st.session_state:
     st.session_state.lettre = random.choice(string.ascii_uppercase)
 
-st.subheader(f"Quelle est la position de la lettre : lettres des nombres premiers B,C,E,G,K,M,Q,S,W: **{st.session_state.lettre}** ?")
+st.subheader(f"Quelle est la position de la lettre : : **{st.session_state.lettre}** ?")
 reponse_alpha = st.number_input("👉 Entrez le numéro :", min_value=1, max_value=26, step=1, key="alpha_input")
 
 cols_alpha = st.columns(2)
