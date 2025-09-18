@@ -1,291 +1,324 @@
+# Streamlit app: TikTok-style bouncing ball inside a rotating ring
+# ---------------------------------------------------------------
+# Run: pip install streamlit
+#      streamlit run app.py
+#
+# This single-file Streamlit app embeds an HTML/JS animation using
+# st.components.v1.html. The JS implements:
+# - a rotating ring (an annulus) composed of drawable segments
+# - a small ball that moves and bounces on the ring
+# - a rotating gap/hole in the ring
+# - when the ball passes through the hole, the ring "breaks" and
+#   explodes into fragments
+#
+# Notes about f-strings & curly braces:
+# This file uses a Python f-string to build a large HTML+JS string. Any
+# curly braces intended for the JavaScript must be escaped by doubling
+# them ({{ and }}). Python placeholders that should be interpolated
+# (like {canvas_size}) remain single-braced.
+
 import streamlit as st
-import random
-import string
-import os
+from textwrap import dedent
 
-# ---------------------------
-# CONFIG
-# ---------------------------
-st.set_page_config(
-    page_title="Entraînement Lettres, Logique & Maths",
-    page_icon="🔠",
-    layout="centered"
-)
+st.set_page_config(page_title="TikTok Bounce — Streamlit", layout="wide")
+st.title("TikTok-style bouncing ball — Streamlit demo")
 
-# ---------------------------
-# STYLES
-# ---------------------------
-st.markdown("""
+# Sidebar controls
+st.sidebar.header("Controls")
+rotation_speed = st.sidebar.slider("Vitesse de rotation (deg/s)", 0.0, 360.0, 60.0)
+gap_degrees = st.sidebar.slider("Largeur du trou (degrés)", 5, 120, 24)
+ball_speed = st.sidebar.slider("Vitesse initiale de la balle", 0.5, 10.0, 3.0)
+autoplay = st.sidebar.checkbox("Autoplay", value=True)
+canvas_size = st.sidebar.selectbox("Taille du canvas", [400, 600, 800], index=1)
+
+# Build HTML + JS
+html = f"""
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
 <style>
-.block-container { padding-top: 2rem; max-width: 980px; }
-.letter-big { font-size: 38px; font-weight: 800; text-align: center; letter-spacing: .20rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-.cell { display:flex; align-items:center; justify-content:center; height:64px; }
-.option-btn { width:100%; height:56px; font-size:18px; font-weight:700; }
-.caption { color: #6b7280; text-align:center; margin-bottom: .25rem; }
-.section { margin-top: 18px; margin-bottom: 18px; }
-
-/* ---- STYLE IMAGE ---- */
-.image-box {
-    background-color: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 1rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-    text-align: center;
-}
-.image-box img {
-    border-radius: 12px;
-    max-width: 100%;
-    height: auto;
-}
-.image-caption {
-    color: #6b7280;
-    font-size: 14px;
-    margin-top: .5rem;
-    font-style: italic;
-}
+  html,body {{ margin:0; height:100%; background:#111; color:#eee; }}
+  #container {{ display:flex; align-items:center; justify-content:center; height:100%; }}
+  canvas {{ background: radial-gradient(circle at 50% 20%, #222 0%, #101010 60%); border-radius:8px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }}
 </style>
-""", unsafe_allow_html=True)
+</head>
+<body>
+<div id="container"><canvas id="c" width="{canvas_size}" height="{canvas_size}"></canvas></div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const cx = W/2, cy = H/2;
 
-# ---------------------------
-# TITRE
-# ---------------------------
-st.title("🔠 Entraînement Lettres, Logique & Maths (style TAJ)")
+// Configurable params passed from Streamlit
+let rotationSpeed = {rotation_speed}; // degrees per second
+let gapWidthDeg = {gap_degrees};
+let initialBallSpeed = {ball_speed};
+let autoplay = {str(autoplay).lower()};
 
-# ---------------------------
-# IMAGE D’ACCUEIL
-# ---------------------------
-img_path = "Gemini_Generated_Image_exwfzoexwfzoexwf.png"
-if os.path.exists(img_path):
-    with st.container():
-        st.markdown('<div class="image-box">', unsafe_allow_html=True)
-        st.image(img_path, use_container_width=True)
-        st.markdown('<div class="image-caption">Exemple d’un intérieur moderne et lumineux</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-else:
-    st.warning("⚠️ Image introuvable : ajoute le fichier dans le même dossier que app.py")
+// Ring geometry
+const outerR = Math.min(W,H)*0.42;
+const innerR = outerR - Math.min(W,H)*0.12;
 
-# ---------------------------
-# OUTIL : feedback commun
-# ---------------------------
-def feedback(condition, msg_ok, msg_fail):
-    if condition:
-        st.success(msg_ok)
-    else:
-        st.error(msg_fail)
+// Ball state
+let ball = {{ x: cx, y: cy - (innerR - 6), vx: 0.0, vy: 0.0, r: Math.max(6, Math.min(12, Math.round(W/60))) }};
+let speedScale = initialBallSpeed;
 
-# =========================================
-# 1) EXERCICE : position dans l'alphabet
-# =========================================
-st.header("1️⃣ Jeu de l'alphabet lettres des nombres premiers B,C,E,G,K,M,Q,S,W")
+// Ring state
+let rot = 0; // degrees
+let destroyed = false;
+let fragments = []; // for explosion
 
-if "lettre" not in st.session_state:
-    st.session_state.lettre = random.choice(string.ascii_uppercase)
+// Initialize ball with a random velocity
+function resetBall() {{
+  const a = (Math.random()*Math.PI*2);
+  ball.vx = Math.cos(a)*speedScale;
+  ball.vy = Math.sin(a)*speedScale;
+  ball.x = cx;
+  ball.y = cy - (innerR - 10);
+  destroyed = false;
+  fragments = [];
+}}
 
-st.subheader(f"Quelle est la position de la lettre : : **{st.session_state.lettre}** ?")
-reponse_alpha = st.number_input("👉 Entrez le numéro :", min_value=1, max_value=26, step=1, key="alpha_input")
+resetBall();
 
-cols_alpha = st.columns(2)
-with cols_alpha[0]:
-    if st.button("Vérifier", key="verif_alpha"):
-        correct = string.ascii_uppercase.index(st.session_state.lettre) + 1
-        feedback(
-            reponse_alpha == correct,
-            f"✅ Bravo ! {st.session_state.lettre} est bien la {correct}ᵉ lettre.",
-            f"❌ Mauvaise réponse. La bonne réponse était {correct}."
-        )
-with cols_alpha[1]:
-    if st.button("Nouvelle lettre", key="new_alpha"):
-        st.session_state.lettre = random.choice(string.ascii_uppercase)
-        st.rerun()
+function drawRing() {{
+  // Draw ring as two arcs: the intact segments and the hole
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rot * Math.PI/180);
 
-st.divider()
+  // draw base ring shadow
+  ctx.beginPath();
+  ctx.arc(0,0, (innerR+outerR)/2, 0, Math.PI*2);
+  ctx.lineWidth = outerR-innerR;
+  ctx.strokeStyle = 'rgba(180,180,180,0.03)';
+  ctx.stroke();
 
-# =========================================
-# 2) EXERCICES : Suites croisées
-# =========================================
-st.header("2️⃣ Suites croisées (verticale + horizontale) — trouve l'intersection")
+  if (!destroyed) {{
+    const gap = gapWidthDeg * Math.PI/180;
+    const halfGap = gap/2;
+    // We'll draw ring as two arcs: from gap_end to gap_start
+    const start = halfGap;
+    const end = Math.PI*2 - halfGap;
 
-cross_exos = [
-    {"vertical": ["3", "4", "5", "6", "7"], "horizontal": ["1", "3", "5", "7", "9"], "options": ["1", "3", "5", "7", "9"], "reponse": "5", "explication": "Verticalement : +1. Horizontalement : +2. Centre commun = 5."},
-    {"vertical": ["C", "E", "G", "I", "K"], "horizontal": ["E", "F", "G", "H", "I"], "options": ["C", "E", "G", "H", "I"], "reponse": "G", "explication": "Verticalement : +2 lettres. Horizontalement : +1. Centre = G."},
-    {"vertical": ["6", "9", "12", "15", "18"], "horizontal": ["2", "7", "12", "17", "22"], "options": ["2", "7", "12", "17", "22"], "reponse": "12", "explication": "Verticalement : +3. Horizontalement : +5. Centre = 12."},
-    {"vertical": ["E", "I", "M", "Q", "U"], "horizontal": ["G", "J", "M", "P", "S"], "options": ["E", "G", "M", "P", "S"], "reponse": "M", "explication": "Verticalement : +4 lettres. Horizontalement : +3. Centre = M."}
-]
+    ctx.beginPath();
+    ctx.arc(0,0, (innerR+outerR)/2, end, start + Math.PI*2, false);
+    ctx.lineWidth = outerR-innerR;
+    // gradient stroke
+    const grad = ctx.createLinearGradient(-outerR, -outerR, outerR, outerR);
+    grad.addColorStop(0, '#ffd966');
+    grad.addColorStop(1, '#ff6b6b');
+    ctx.strokeStyle = grad;
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 12;
+    ctx.lineCap = 'round';
+    ctx.stroke();
 
-if "cross_idx" not in st.session_state:
-    st.session_state.cross_idx = 0
-if "cross_round" not in st.session_state:
-    st.session_state.cross_round = 0
-if "cross_choice" not in st.session_state:
-    st.session_state.cross_choice = None
+    // subtle inner rim
+    ctx.beginPath();
+    ctx.arc(0,0, innerR+2, end, start + Math.PI*2, false);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.stroke();
+  }}
 
-cross = cross_exos[st.session_state.cross_idx]
-vert, horiz, opts, correct = cross["vertical"], cross["horizontal"], cross["options"], cross["reponse"]
+  ctx.restore();
+}}
 
-st.markdown('<div class="caption">La colonne centrale et la ligne centrale se croisent. Trouve la valeur au centre.</div>', unsafe_allow_html=True)
+function drawBall() {{
+  ctx.beginPath();
+  ctx.fillStyle = '#ffffff';
+  // soft glow
+  ctx.shadowColor = '#ffb3b3';
+  ctx.shadowBlur = 12;
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}}
 
-def display_cell(text):
-    if text is None:
-        st.markdown('<div class="cell">&nbsp;</div>', unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div class="cell letter-big">{text}</div>', unsafe_allow_html=True)
+function drawFragments() {{
+  if (fragments.length === 0) return;
+  fragments.forEach(f => {{
+    ctx.beginPath();
+    ctx.fillStyle = f.color;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(f.rot);
+    ctx.rect(f.x, f.y, f.w, f.h);
+    ctx.fill();
+    ctx.restore();
+  }});
+}}
 
-center_shown = correct if st.session_state.cross_choice is not None else "?"
-for i in range(5):
-    cols = st.columns(5, gap="large")
-    for j in range(5):
-        with cols[j]:
-            if i == 2 and j == 2:
-                display_cell(center_shown)
-            elif j == 2:
-                display_cell(vert[i])
-            elif i == 2:
-                display_cell(horiz[j])
-            else:
-                display_cell(None)
+function update(dt) {{
+  if (!autoplay) return;
+  // rotation
+  rot += rotationSpeed * dt/1000.0; // degrees
+  rot %= 360;
 
-opt_cols = st.columns(5, gap="small")
-for idx, opt in enumerate(opts):
-    with opt_cols[idx]:
-        if st.button(opt, key=f"cross_opt_{st.session_state.cross_round}_{idx}"):
-            st.session_state.cross_choice = opt
+  if (destroyed) {{
+    // update fragments
+    fragments.forEach(f => {{
+      f.vx += f.ax*dt/1000;
+      f.vy += f.ay*dt/1000;
+      f.x += f.vx*dt/1000;
+      f.y += f.vy*dt/1000;
+      f.rot += f.vrot*dt/1000;
+    }});
+    return;
+  }}
 
-if st.session_state.cross_choice is not None:
-    feedback(
-        st.session_state.cross_choice == correct,
-        f"✅ Bonne réponse : **{correct}**",
-        f"❌ Mauvaise réponse. Correct = **{correct}**, tu as choisi {st.session_state.cross_choice}."
-    )
-    st.info(f"💡 Explication : {cross['explication']}")
+  // move ball
+  ball.x += ball.vx * dt/16.0;
+  ball.y += ball.vy * dt/16.0;
 
-c1, c2, c3 = st.columns([1,1,1])
-with c1:
-    if st.button("🔄 Mélanger (nouvel exo)"):
-        st.session_state.cross_idx = random.randrange(len(cross_exos))
-        st.session_state.cross_round += 1
-        st.session_state.cross_choice = None
-        st.rerun()
-with c2:
-    if st.button("♻️ Réinitialiser"):
-        st.session_state.cross_choice = None
-        st.rerun()
-with c3:
-    if st.button("⏮️ Revenir au 1ᵉʳ exo"):
-        st.session_state.cross_idx = 0
-        st.session_state.cross_round += 1
-        st.session_state.cross_choice = None
-        st.rerun()
+  // gravity-like pull toward center (subtle)
+  const dx = cx - ball.x;
+  const dy = cy - ball.y;
+  const dist = Math.sqrt(dx*dx + dy*dy);
 
-st.divider()
+  // Collision with outer/inner ring walls depends on rotated ring
+  // Compute ball polar coords relative to center and subtract rotation
+  let ang = Math.atan2(ball.y - cy, ball.x - cx); // radians
+  let angDeg = ang * 180/Math.PI;
+  // normalise
+  // compute angle in ring's rotating frame
+  let ringAng = angDeg - rot;
+  while (ringAng <= -180) ringAng += 360;
+  while (ringAng > 180) ringAng -= 360;
 
-# =========================================
-# 3) Tables de multiplication (10 à 20)
-# =========================================
-st.header("3️⃣ Tables de multiplication (10 à 20)")
+  // distance to center
+  if (dist + ball.r >= innerR && dist - ball.r <= outerR) {{
+    // ball intersects the annulus region; check gap
+    const halfGap = gapWidthDeg/2;
+    if (ringAng > -halfGap && ringAng < halfGap) {{
+      // It's within the gap -> ball escapes through the hole
+      // Trigger destroy
+      destroyAtAngle(ang + rot*Math.PI/180);
+      return;
+    }} else {{
+      // Reflect off ring normal
+      // radial normal vector
+      const nx = dx/dist;
+      const ny = dy/dist;
+      // velocity vector
+      const vdotn = ball.vx * nx + ball.vy * ny;
+      // reflect
+      ball.vx = ball.vx - 2*vdotn*nx;
+      ball.vy = ball.vy - 2*vdotn*ny;
+      // damping
+      ball.vx *= 0.98;
+      ball.vy *= 0.98;
+      // push ball slightly to avoid sticking
+      const overlap = Math.max(0, (innerR + ball.r) - dist);
+      if (overlap > 0) {{
+        ball.x -= nx * (overlap + 0.5);
+        ball.y -= ny * (overlap + 0.5);
+      }}
+    }}
+  }} else {{
+    // keep ball inside by small central force
+    ball.vx += dx/dist * 0.05;
+    ball.vy += dy/dist * 0.05;
+    // cap speeds
+    const sp = Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy);
+    if (sp > 60) {{ ball.vx *= 60/sp; ball.vy *= 60/sp; }}
+  }}
+}}
 
-table = st.selectbox("👉 Choisis une table :", list(range(10, 21)), index=0)
+function destroyAtAngle(angleRad) {{
+  destroyed = true;
+  // create fragments along ring arc near the angle
+  const segCount = 18;
+  for (let i=0;i<segCount;i++) {{
+    const theta = angleRad + (Math.random()-0.5) * (gapWidthDeg*Math.PI/180*2);
+    const rmid = (innerR+outerR)/2;
+    const fx = Math.cos(theta) * rmid;
+    const fy = Math.sin(theta) * rmid;
+    const size = (outerR-innerR) * (0.2 + Math.random()*0.6);
+    fragments.push({{
+      x: fx, y: fy, w: size*0.9, h: size*0.4,
+      vx: (Math.cos(theta) * (50+Math.random()*150)),
+      vy: (Math.sin(theta) * (50+Math.random()*150)),
+      ax: 0, ay: 200, // gravity
+      rot: Math.random()*Math.PI*2,
+      vrot: (Math.random()-0.5)*5,
+      color: 'rgba(' + (200 + Math.floor(Math.random()*55)) + ', ' + (120 + Math.floor(Math.random()*80)) + ', ' + (80 + Math.floor(Math.random()*120)) + ', 1)'
+    }});
+  }}
 
-if "mult_calc" not in st.session_state or st.session_state.mult_calc[0] != table:
-    n = random.randint(1, 20)
-    st.session_state.mult_calc = (table, n)
+  // give the ball an outward impulse
+  const dirx = Math.cos(angleRad);
+  const diry = Math.sin(angleRad);
+  ball.vx = dirx * 120;
+  ball.vy = diry * 120;
+}}
 
-a, b = st.session_state.mult_calc
-st.subheader(f"Calcule : **{a} × {b}**")
-reponse_mult = st.number_input("👉 Entrez votre réponse :", min_value=0, step=1)
+let last = performance.now();
+function loop(now) {{
+  const dt = now - last;
+  last = now;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}}
 
-cols_mult = st.columns(2)
-with cols_mult[0]:
-    if st.button("Vérifier"):
-        correct_mult = a * b
-        feedback(
-            reponse_mult == correct_mult,
-            f"✅ Correct ! {a} × {b} = {correct_mult}",
-            f"❌ Faux. La bonne réponse est {correct_mult}."
-        )
-with cols_mult[1]:
-    if st.button("Nouveau calcul"):
-        st.session_state.mult_calc = (table, random.randint(1, 20))
-        st.rerun()
+function render() {{
+  ctx.clearRect(0,0,W,H);
+  // soft vignette
+  const g = ctx.createRadialGradient(cx, cy, Math.min(W,H)*0.1, cx, cy, Math.max(W,H));
+  g.addColorStop(0, 'rgba(255,255,255,0.02)');
+  g.addColorStop(1, 'rgba(0,0,0,0.6)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,W,H);
 
-with st.expander(f"📖 Afficher la table de {table}"):
-    for i in range(1, 21):
-        st.write(f"{table} × {i} = {table*i}")
+  drawRing();
+  drawFragments();
+  drawBall();
+}}
 
-st.divider()
+requestAnimationFrame(loop);
 
-# =========================================
-# 4) Cubes (jusqu’à 13³)
-# =========================================
-st.header("4️⃣ Les cubes (jusqu’à 13³)")
+// Click to nudge / reset
+canvas.addEventListener('click', (e) => {{
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  // give ball a tiny push towards click
+  ball.vx += (mx - ball.x) * 0.05;
+  ball.vy += (my - ball.y) * 0.05;
+}});
 
-if "cube_n" not in st.session_state:
-    st.session_state.cube_n = random.randint(1, 13)
+// Double click to reset entire scene
+canvas.addEventListener('dblclick', (e) => {{ resetBall(); destroyed=false; fragments=[]; }});
 
-n = st.session_state.cube_n
-st.subheader(f"Calcule : **{n}³**")
-reponse_cube = st.number_input("👉 Entrez votre réponse :", min_value=0, step=1, key="cube_input")
+</script>
+</body>
+</html>
+"""
 
-cols_cube = st.columns(2)
-with cols_cube[0]:
-    if st.button("Vérifier", key="verif_cube"):
-        correct_cube = n ** 3
-        feedback(
-            reponse_cube == correct_cube,
-            f"✅ Correct ! {n}³ = {correct_cube}",
-            f"❌ Faux. La bonne réponse est {correct_cube}."
-        )
-with cols_cube[1]:
-    if st.button("Nouveau cube"):
-        st.session_state.cube_n = random.randint(1, 13)
-        st.rerun()
+# Streamlit display
+import streamlit.components.v1 as components
+components.html(html, height=canvas_size+20, scrolling=False)
 
-with st.expander("📖 Afficher les cubes de 1 à 13"):
-    for i in range(1, 14):
-        st.write(f"{i}³ = {i**3}")
+st.markdown(dedent('''
+**Instructions rapides**
+- Cliquez pour pousser la balle, double-cliquez pour réinitialiser.
+- Ajustez la vitesse de rotation, la taille du trou et la vitesse de la balle dans la barre latérale.
 
-st.divider()
+**À propos**: ce fichier est pensé pour être le point de départ. Si tu veux, je peux aussi:
+- Te fournir un `README.md` complet prêt à déposer sur GitHub.
+- Ajouter un fichier `requirements.txt` et des tests minimaux.
+'''))
 
-# =========================================
-# 5) Nombres premiers
-# =========================================
-st.header("5️⃣ Les nombres premiers")
-
-if "prime_n" not in st.session_state:
-    st.session_state.prime_n = random.randint(2, 100)
-
-def est_premier(x):
-    if x < 2:
-        return False
-    for i in range(2, int(x**0.5) + 1):
-        if x % i == 0:
-            return False
-    return True
-
-nprime = st.session_state.prime_n
-st.subheader(f"Ce nombre est-il premier ? 👉 **{nprime}**")
-
-c1, c2 = st.columns(2)
-with c1:
-    if st.button("✅ Premier"):
-        feedback(
-            est_premier(nprime),
-            f"✅ Correct ! {nprime} est bien premier.",
-            f"❌ Faux. {nprime} n’est pas premier."
-        )
-with c2:
-    if st.button("❌ Non premier"):
-        feedback(
-            not est_premier(nprime),
-            f"✅ Correct ! {nprime} n’est pas premier.",
-            f"❌ Faux. {nprime} est premier."
-        )
-
-if st.button("🔄 Nouveau nombre"):
-    st.session_state.prime_n = random.randint(2, 100)
-    st.rerun()
-
-with st.expander("📖 Afficher les nombres premiers jusqu’à 100"):
-    primes = [x for x in range(2, 101) if est_premier(x)]
-    st.write(", ".join(map(str, primes)))
+# Minimal smoke tests (run when executing the file directly, not when Streamlit runs it)
+if __name__ == "__main__":
+    # Basic checks to help catching template/braces issues
+    assert '<canvas' in html, "HTML should contain a canvas element"
+    assert 'rotationSpeed' in html, "HTML should contain rotationSpeed placeholder"
+    assert 'autoplay' in html, "HTML should contain autoplay setting"
+    assert 'rgba(' in html, "Fragment color should be generated using rgba"
+    assert '${' not in html, "There should be no JS template literal '${' left unescaped in the HTML"
+    print('Smoke tests passed: HTML generated OK.')
